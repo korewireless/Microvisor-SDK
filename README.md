@@ -19,7 +19,7 @@ The environment variable `MV_ARCH` is required to be set by your consuming proje
 You can also consume the included artifacts directly:
 
 - `stm32u5/mv_syscalls.h` should be included in your project to provide declarations for Microvisor’s NSC functions.
-- `stm32u5/mv_implib.o` should be linked against your binary to provide addresses for the NSC functions defined in `mv_syscalls.h`.
+- `stm32u5/mv_syscalls.o` should be linked against your binary to provide addresses for the NSC functions defined in `mv_syscalls.h`.
 - `stm32u5/STM32U585xx_FLASH_mv.ld` defines the memory map where your program should be loaded and should be passed to the linker flags in your project.
 
 ## Copyright

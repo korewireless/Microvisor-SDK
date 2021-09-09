@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 
-add_library(twilio-microvisor-sdk ${MV_ARCH}/mv_implib.o)
+add_library(twilio-microvisor-sdk ${MV_ARCH}/mv_syscalls.o)
 
 set_target_properties(twilio-microvisor-sdk PROPERTIES LINKER_LANGUAGE C)
 
