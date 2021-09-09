@@ -1,4 +1,4 @@
-# Twilio Microvisor API Stubs
+# Twilio Microvisor System Call Stubs
 
 This repository contains the following artifacts for building user applications under Microvisor:
 
@@ -8,12 +8,11 @@ This repository contains the following artifacts for building user applications 
 
 **Note** This repo is provided primarily as a source for our [twilio-microvisor-hal-stm32u5](https://github.com/twilio/twilio-microvisor-hal-stm32u5) and [twilio-microvisor-freertos](https://github.com/twilio/twilio-microvisor-freertos) projects. It is also intended for developers with very specific project configuration requirements. We recommend all other developers start with one of the above projects.
 
-If you intend to install and use a HAL too, please make sure that you use our [twilio-microvisor-hal-stm32u5](https://github.com/twilio/twilio-microvisor-hal-stm32u5) project as STM’s generic U5 Cube HAL will not work with Microvisor.
+If you intend to install and use a HAL too, please make sure that you use our [twilio-microvisor-hal-stm32u5](https://github.com/twilio/twilio-microvisor-hal-stm32u5) project as STMicro’s generic U5 Cube HAL will not work with Microvisor.
 
 ## Usage
 
-A `CMakeLists.txt` file is provided which exports a library and linker flags to use in
-your application. This project is consumed by both our [twilio-microvisor-hal-stm32u5](https://github.com/twilio/twilio-microvisor-hal-stm32u5) and [twilio-microvisor-freertos](https://github.com/twilio/twilio-microvisor-freertos) projects.
+A `CMakeLists.txt` file is provided which exports a library and linker flags to use in your application. This project is consumed by both our [twilio-microvisor-hal-stm32u5](https://github.com/twilio/twilio-microvisor-hal-stm32u5) and [twilio-microvisor-freertos](https://github.com/twilio/twilio-microvisor-freertos) projects.
 
 The environment variable `MV_ARCH` is required to be set by your consuming project. The only currently valid value for this is `"stm32u5"`.
 
