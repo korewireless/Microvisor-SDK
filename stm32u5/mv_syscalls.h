@@ -1,5 +1,5 @@
-#ifndef MV_API_H
-#define MV_API_H
+#ifndef MV_SYSCALLS_H
+#define MV_SYSCALLS_H
 
 #include <stdint.h>
 
@@ -605,4 +605,4 @@ uint32_t mvGetChannelClosureReason(MvChannelHandle handle, enum MvClosureReason 
 } // extern "C"
 #endif
 
-#endif // MV_API_H
+#endif // MV_SYSCALLS_H
