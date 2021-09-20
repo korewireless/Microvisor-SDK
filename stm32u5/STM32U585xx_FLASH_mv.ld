@@ -45,8 +45,8 @@ _Min_Stack_Size = 0x2000;	/* required amount of stack */
 /* Memories definition */
 MEMORY
 {
-  RAM	(xrw)	: ORIGIN = 0x20000000,	LENGTH = 512K     /* Memory is divided. Actual start is 0x20000000 and actual length is ___K */
-  ROM	(rx)	: ORIGIN = 0x08000000,	LENGTH = 1536K    /* Memory is divided. Actual start is 0x08000000 and actual length is ____K */
+  RAM	(xrw)	: ORIGIN = 0x20000000,	LENGTH = 512K     /* Memory is divided. Actual start is 0x20000000 and actual length is 512K */
+  ROM	(rx)	: ORIGIN = 0x08000000,	LENGTH = 1024K    /* Memory is divided. Actual start is 0x08000000 and actual length is 1024K */
 }
 
 /* Sections */
