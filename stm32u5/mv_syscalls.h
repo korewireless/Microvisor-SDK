@@ -27,6 +27,7 @@ enum MvStatus {
     MV_STATUS_NETWORKNOTCONNECTED  = 0x10, //< The network operation could not be actioned because the device is offline.
     MV_STATUS_RATELIMITED          = 0x11, //< The operation has been called too often. Try again later.
     MV_STATUS_INVALIDBUFFERALIGNMENT = 0x12, //< Indicates the buffer alignment provided is not sufficient for the function called.
+    MV_STATUS_LATEFAULT            = 0x13, //< Indicates the fault after an action was taken, e.g. error writing result of a successful operation.
     MV_STATUS__MAX                 = 0xffffffff, //< Ensure use of correct underlying size.
 };
 
@@ -182,10 +183,11 @@ typedef struct MvChannelHandleOpaque *MvChannelHandle;
  *  Reasons why a channel has been closed.
  */
 enum MvClosureReason {
-    MV_CLOSUREREASON_A             = 0x0, //< Placeholder for channel closure reason A.
-    MV_CLOSUREREASON_B             = 0x1, //< Placeholder for channel closure reason B.
-    MV_CLOSUREREASON_C             = 0x2, //< Placeholder for channel closure reason C.
-    MV_CLOSUREREASON_D             = 0x3, //< Placeholder for channel closure reason D.
+    MV_CLOSUREREASON_NONE          = 0x0, //< The channel is not closed or the closure reason is not known.
+    MV_CLOSUREREASON_CHANNELCLOSEDBYSERVER = 0x1, //< The channel was closed by the server.
+    MV_CLOSUREREASON_CHANNELRESETBYSERVER = 0x2, //< The channel was reset by the server.
+    MV_CLOSUREREASON_NETWORKDISCONNECTED = 0x3, //< The channel was closed due to a network disconnection.
+    MV_CLOSUREREASON_CONNECTIONTERMINATED = 0x4, //< The connection to the server was terminated due to an error.
     MV_CLOSUREREASON__MAX          = 0xffffffff, //< Ensure use of correct underlying size.
 };
 
@@ -265,18 +267,6 @@ uint32_t mvGetPClk2(uint32_t *hz);
  * @retval MV_STATUS_TIMENOTSET No wall time is available.
  */
 uint32_t mvGetWallTime(uint64_t *usec);
-
-/**
- *  Sends a string to the server.
- *  This is not a real bit of networking API, and will be removed.
- *
- * Parameters:
- * @param[in]     s               Pointer to the utf8 string to send.
- * @param         len             The length of the string pointed to by `s`.
- *
- * @retval MV_STATUS_PARAMETERFAULT `s` is not entirely in non-secure memory.
- */
-uint32_t mvTemporaryServerLog(const uint8_t *s, uint32_t len);
 
 /**
  *  Test structure parameters
@@ -550,8 +540,8 @@ uint32_t mvReadChannelComplete(MvChannelHandle handle, uint32_t consumed);
  * @param[out]    written         A pointer to a `uint32_t` in which the number of bytes written will be stored.
  *
  * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid channel handle.
- * @retval MV_STATUS_PARAMETERFAULT `data` is not readable.
- * @retval MV_STATUS_PARAMETERFAULT `written` is not writable.
+ * @retval MV_STATUS_PARAMETERFAULT Either `data` or `written` is not a valid pointer.
+ * @retval MV_STATUS_LATEFAULT `written` is not a valid pointer, but data has been written.
  * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
  */
 uint32_t mvWriteChannelStream(MvChannelHandle handle, const uint8_t *data, uint32_t len, uint32_t *written);
@@ -568,12 +558,14 @@ uint32_t mvWriteChannelStream(MvChannelHandle handle, const uint8_t *data, uint3
  * @param         handle          The handle of the channel to write to.
  * @param[in]     data            A pointer to the data to write to the channel.
  * @param         len             The number of bytes to write.
- * @param[out]    available       A pointer to a `uint32_t` in which the number of bytes available in the channel's write buffer will be stored.
+ * @param[out]    available       A pointer to a `uint32_t` in which the number of bytes
+available in the channel's write buffer will be stored.
+
  *
  * @retval MV_STATUS_INVALIDBUFFERSIZE No data was consumed because it does not all fit into the channel's send buffer.
  * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid channel handle.
- * @retval MV_STATUS_PARAMETERFAULT `data` is not readable.
- * @retval MV_STATUS_PARAMETERFAULT `available` is not writable.
+ * @retval MV_STATUS_PARAMETERFAULT Either `data` or `available` is not a valid pointer.
+ * @retval MV_STATUS_LATEFAULT `available` is not a valid pointer, but data has been written.
  * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
  */
 uint32_t mvWriteChannel(MvChannelHandle handle, const uint8_t *data, uint32_t len, uint32_t *available);
