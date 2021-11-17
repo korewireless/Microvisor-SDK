@@ -1,5 +1,5 @@
-#ifndef MV_SYSCALLS_H
-#define MV_SYSCALLS_H
+#ifndef MV_API_H
+#define MV_API_H
 
 #include <stdint.h>
 
@@ -28,6 +28,11 @@ enum MvStatus {
     MV_STATUS_RATELIMITED          = 0x11, //< The operation has been called too often. Try again later.
     MV_STATUS_INVALIDBUFFERALIGNMENT = 0x12, //< Indicates the buffer alignment provided is not sufficient for the function called.
     MV_STATUS_LATEFAULT            = 0x13, //< Indicates the fault after an action was taken, e.g. error writing result of a successful operation.
+    MV_STATUS_RESPONSENOTPRESENT   = 0x14, //< There is no HTTP response to read.
+    MV_STATUS_HEADERINDEXINVALID   = 0x15, //< The HTTP header index is out of bounds.
+    MV_STATUS_OFFSETINVALID        = 0x16, //< THe offset into the http response body exceeds its size.
+    MV_STATUS_REQUESTALREADYSENT   = 0x17, //< Request has already been sent, can't do it again over the same channel.
+    MV_STATUS_REQUESTUNSUCCESSFUL  = 0x18, //< Request has failed, data can't be read.
     MV_STATUS__MAX                 = 0xffffffff, //< Ensure use of correct underlying size.
 };
 
@@ -144,6 +149,7 @@ enum MvNetworkReason {
  */
 enum MvChannelType {
     MV_CHANNELTYPE_OPAQUEBYTES     = 0x0, //< The channel carries opaque bytes
+    MV_CHANNELTYPE_HTTP            = 0x2, //< The channel carries HTTP data
     MV_CHANNELTYPE__MAX            = 0xffffffff, //< Ensure use of correct underlying size.
 };
 
@@ -189,6 +195,59 @@ enum MvClosureReason {
     MV_CLOSUREREASON_NETWORKDISCONNECTED = 0x3, //< The channel was closed due to a network disconnection.
     MV_CLOSUREREASON_CONNECTIONTERMINATED = 0x4, //< The connection to the server was terminated due to an error.
     MV_CLOSUREREASON__MAX          = 0xffffffff, //< Ensure use of correct underlying size.
+};
+
+struct MvHttpHeader {
+    /// The length of the header in bytes
+    uint32_t length;
+    /// Header content
+    const uint8_t *data;
+};
+
+struct MvHttpRequest {
+    /// HTTP method (GET, HEAD, POST, PUT, DELETE, PATCH or OPTIONS).
+    const uint8_t *method;
+    /// The length of the method string in bytes.
+    uint32_t method_len;
+    /// URL to access, only "https://" is supported.
+    const uint8_t *url;
+    /// The length of the url string in bytes.
+    uint32_t url_len;
+    /// Number of headers in "headers" array.
+    uint32_t num_headers;
+    /// Headers for request.
+    const struct MvHttpHeader *headers;
+    /// Request body.
+    const uint8_t *body;
+    /// The length of the body in bytes.
+    uint32_t body_len;
+    /// Request timeout in milliseconds. Microvisor supports timeouts from 5000 to 10000 milliseconds.
+    uint32_t timeout_ms;
+};
+
+/**
+ *  The outcome of an HTTP response.
+ */
+enum MvHttpResult {
+    MV_HTTPRESULT_OK               = 0x0, //< The HTTP request succeeded.
+    MV_HTTPRESULT_UNSUPPORTEDURISCHEME = 0x1, //< An unsupported URI scheme was used in the request.
+    MV_HTTPRESULT_UNSUPPORTEDMETHOD = 0x2, //< An unsupported method was used in the request.
+    MV_HTTPRESULT_INVALIDHEADERS   = 0x3, //< Invalid headers were provided in the request.
+    MV_HTTPRESULT_INVALIDTIMEOUT   = 0x4, //< An invalid timeout was specified in the request.
+    MV_HTTPRESULT_REQUESTFAILED    = 0x5, //< The HTTP request failed.
+    MV_HTTPRESULT_RESPONSETOOLARGE = 0x6, //< The HTTP response returned by the server doesn't fit the receive buffer.
+    MV_HTTPRESULT__MAX             = 0xffffffff, //< Ensure use of correct underlying size.
+};
+
+struct MvHttpResponseData {
+    /// HTTP request result as reported by Microvisor server.
+    enum MvHttpResult result;
+    /// Status code reported by the endpoint.
+    uint32_t status_code;
+    /// Number of headers in the response.
+    uint32_t num_headers;
+    /// Length of response body in bytes.
+    uint32_t body_length;
 };
 
 #ifdef __cplusplus
@@ -593,8 +652,72 @@ uint32_t mvCloseChannel(MvChannelHandle *handle);
  */
 uint32_t mvGetChannelClosureReason(MvChannelHandle handle, enum MvClosureReason *reason_out);
 
+/**
+ *  Send HTTP request to a channel.
+ *
+ * Parameters:
+ * @param         handle          The handle of the channel over which to send the request.
+ * @param[in]     request         A pointer to the struct describing the request.
+ *
+ * @retval MV_STATUS_PARAMETERFAULT `request` is an illegal pointer.
+ * @retval MV_STATUS_LATEFAULT Some of `request`'s nested pointers are illegal. The stream is not usable after that and should be closed.
+ * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid HTTP channel handle.
+ * @retval MV_STATUS_INVALIDBUFFERSIZE Request doesn't fit the send buffer.
+ * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
+ * @retval MV_STATUS_REQUESTALREADYSENT The request has already been sent either successfully or not.
+ */
+uint32_t mvSendHttpRequest(MvChannelHandle handle, const struct MvHttpRequest *request);
+
+/**
+ *  Read the status of an HTTP response on a channel.
+ *
+ * Parameters:
+ * @param         handle          The handle of the channel on which the response was received.
+ * @param[out]    response_data    The result of the HTTP request
+ *
+ * @retval MV_STATUS_PARAMETERFAULT `response_data` is an illegal pointer.
+ * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid HTTP channel handle.
+ * @retval MV_STATUS_RESPONSENOTPRESENT No HTTP response is present.
+ * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
+ */
+uint32_t mvReadHttpResponseData(MvChannelHandle handle, struct MvHttpResponseData *response_data);
+
+/**
+ *  Read header data from an HTTP response.
+ *
+ * Parameters:
+ * @param         handle          The handle of the channel on which the response was received.
+ * @param         header_index    The index of the header to read.
+ * @param[out]    buf             The buffer into which to copy the header data.
+ * @param         size            The size in bytes of `buf`
+ *
+ * @retval MV_STATUS_PARAMETERFAULT `buf` is an illegal pointer
+ * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid HTTP channel handle.
+ * @retval MV_STATUS_RESPONSENOTPRESENT No HTTP response is present.
+ * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
+ * @retval MV_STATUS_HEADERINDEXINVALID `header_index` is out of bounds
+ */
+uint32_t mvReadHttpResponseHeader(MvChannelHandle handle, uint32_t header_index, uint8_t *buf, uint32_t size);
+
+/**
+ *  Read body data from an HTTP response.
+ *
+ * Parameters:
+ * @param         handle          The handle of the channel on which the response was received.
+ * @param         offset          The byte offset from the start of the body to read from.
+ * @param[out]    buf             The buffer into which to copy the body data.
+ * @param         size            The size in bytes of `buf`
+ *
+ * @retval MV_STATUS_PARAMETERFAULT `buf` is an illegal pointer
+ * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid HTTP channel handle.
+ * @retval MV_STATUS_RESPONSENOTPRESENT No HTTP response is present.
+ * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
+ * @retval MV_STATUS_OFFSETINVALID `offset` exceeds the size of the returned body
+ */
+uint32_t mvReadHttpResponseBody(MvChannelHandle handle, uint32_t offset, uint8_t *buf, uint32_t size);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
 
-#endif // MV_SYSCALLS_H
+#endif // MV_API_H
