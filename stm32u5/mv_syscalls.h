@@ -17,7 +17,7 @@ enum MvStatus {
     MV_STATUS_INVALIDINTERRUPT     = 0x6, //< The specified interrupt is not usable by the application, or is already in use by another object.
     MV_STATUS_INVALIDHANDLE        = 0x7, //< The specified handle is not valid, or is a handle to a different type of object.
     MV_STATUS_TOOMANYNOTIFICATIONBUFFERS = 0x8, //< The internal limit on number of simultaneous notification buffers has been reached.
-    MV_STATUS_INVALIDVECTOR        = 0x9, //< An invalid interrupt vector address specified for a prioritized interrupt.
+    MV_STATUS_INVALIDVECTOR        = 0x9, //< An invalid interrupt vector address specified for a fast interrupt.
     MV_STATUS_UNAVAILABLE          = 0xa, //< Functionality unavailable due to current state.
     MV_STATUS_UNSUPPORTEDSTRUCTUREVERSION = 0xb, //< A versioned structure was encountered that Microvisor does not support.
     MV_STATUS_TOOMANYCHANNELS      = 0xc, //< The internal limit on the number of simultaneous network channels has been reached.
@@ -33,6 +33,8 @@ enum MvStatus {
     MV_STATUS_OFFSETINVALID        = 0x16, //< THe offset into the http response body exceeds its size.
     MV_STATUS_REQUESTALREADYSENT   = 0x17, //< Request has already been sent, can't do it again over the same channel.
     MV_STATUS_REQUESTUNSUCCESSFUL  = 0x18, //< Request has failed, data can't be read.
+    MV_STATUS_LOGMESSAGETOOLONG    = 0x19, //< The log message exceeds the maximum allowed size.
+    MV_STATUS_LOGGINGDISABLEDBYSERVER = 0x1a, //< The server has disabled logging.
     MV_STATUS__MAX                 = 0xffffffff, //< Ensure use of correct underlying size.
 };
 
@@ -148,8 +150,8 @@ enum MvNetworkReason {
  *  The type of data carried by the channel.
  */
 enum MvChannelType {
-    MV_CHANNELTYPE_OPAQUEBYTES     = 0x0, //< The channel carries opaque bytes
-    MV_CHANNELTYPE_HTTP            = 0x2, //< The channel carries HTTP data
+    MV_CHANNELTYPE_OPAQUEBYTES     = 0x0, //< The channel carries opaque bytes.
+    MV_CHANNELTYPE_HTTP            = 0x2, //< The channel carries HTTP data.
     MV_CHANNELTYPE__MAX            = 0xffffffff, //< Ensure use of correct underlying size.
 };
 
@@ -198,9 +200,9 @@ enum MvClosureReason {
 };
 
 struct MvHttpHeader {
-    /// The length of the header in bytes
+    /// The length of the header in bytes.
     uint32_t length;
-    /// Header content
+    /// Header content.
     const uint8_t *data;
 };
 
@@ -211,9 +213,9 @@ struct MvHttpRequest {
     uint32_t method_len;
     /// URL to access, only "https://" is supported.
     const uint8_t *url;
-    /// The length of the url string in bytes.
+    /// The length of the URL string in bytes.
     uint32_t url_len;
-    /// Number of headers in "headers" array.
+    /// Number of headers in `headers` array.
     uint32_t num_headers;
     /// Headers for request.
     const struct MvHttpHeader *headers;
@@ -255,7 +257,7 @@ extern "C" {
 #endif
 
 /**
- *  Does nothing, and returns Status::Okay.
+ *  Does nothing, and returns `Status::Okay`.
  */
 uint32_t mvNoOp(void);
 
@@ -328,13 +330,13 @@ uint32_t mvGetPClk2(uint32_t *hz);
 uint32_t mvGetWallTime(uint64_t *usec);
 
 /**
- *  Test structure parameters
+ *  Test structure parameters`
  *
  * Parameters:
  * @param[in]     in              input structure.
  *
  * @retval MV_STATUS_PARAMETERFAULT `in` is an illegal pointer.
- * @retval MV_STATUS_UNSUPPORTEDSTRUCTUREVERSION structure version is not supported`
+ * @retval MV_STATUS_UNSUPPORTEDSTRUCTUREVERSION Structure version is not supported.
  */
 uint32_t mvTemporaryStructTest(const struct MvTemporaryTestVersionedStruct *in);
 
@@ -384,7 +386,7 @@ uint32_t mvPeriphPoke32(uint32_t reg, uint32_t mask, uint32_t xorvalue);
  *  setting its priority, enabling it, etc.
  *
  *  The supplied IRQ must be usable the application. It must not be a
- *  prioritized interrupt. It must not already be used by another notification
+ *  fast interrupt. It must not already be used by another notification
  *  object.
  *
  * Parameters:
@@ -436,54 +438,54 @@ uint32_t mvTempTriggerNotification(MvNotificationHandle handle, uint32_t type, u
  *
  * @retval MV_STATUS_INVALIDINTERRUPT `irqn` is not available to non-secure code.
  * @retval MV_STATUS_INVALIDVECTOR VTOR or interrupt vector is not in non-secure memory.
- * @retval MV_STATUS_UNAVAILABLE Prioritized interrupts unavailable. Code is being shut down after a hung interrupt or interrupt flood.
+ * @retval MV_STATUS_UNAVAILABLE Fast interrupts are unavailable. Code is being shut down after a hung interrupt or interrupt flood.
  */
-uint32_t mvPrioritizeInterrupt(uint32_t irqn);
+uint32_t mvSetFastInterrupt(uint32_t irqn);
 
 /**
- *  Makes an interrupt previously prioritized with `mvPrioritizeInterrupt`
+ *  Makes an interrupt previously set as fast with `mvSetFastInterrupt`
  *  a normal interrupt again.
  *
  * Parameters:
  * @param         irqn            The IRQ number.
  *
  * @retval MV_STATUS_INVALIDINTERRUPT `irqn` is not available to non-secure code.
- * @retval MV_STATUS_UNAVAILABLE Prioritized interrupts unavailable. Code is being shut down after a hung interrupt or interrupt flood.
+ * @retval MV_STATUS_UNAVAILABLE Fast interrupts are unavailable. Code is being shut down after a hung interrupt or interrupt flood.
  */
-uint32_t mvDeprioritizeInterrupt(uint32_t irqn);
+uint32_t mvClearFastInterrupt(uint32_t irqn);
 
 /**
- *  Enables a prioritized interrupt.
+ *  Enables a fast interrupt.
  *
  * Parameters:
  * @param         irqn            The IRQ number.
  *
  * @retval MV_STATUS_INVALIDINTERRUPT `irqn` is not available to non-secure code.
- * @retval MV_STATUS_UNAVAILABLE Prioritized interrupts unavailable. Code is being shut down after a hung interrupt or interrupt flood
+ * @retval MV_STATUS_UNAVAILABLE Fast interrupts are unavailable. Code is being shut down after a hung interrupt or interrupt flood.
  */
-uint32_t mvEnablePrioritizedInterrupt(uint32_t irqn);
+uint32_t mvEnableFastInterrupt(uint32_t irqn);
 
 /**
- *  Disables a previously enabled prioritized interrupt.
+ *  Disables a previously enabled fast interrupt.
  *
  * Parameters:
  * @param         irqn            The IRQ number.
  *
  * @retval MV_STATUS_INVALIDINTERRUPT `irqn` is not available to non-secure code.
- * @retval MV_STATUS_UNAVAILABLE Prioritized interrupts unavailable. Code is being shut down after a hung interrupt or interrupt flood.
+ * @retval MV_STATUS_UNAVAILABLE Fast interrupts are unavailable. Code is being shut down after a hung interrupt or interrupt flood.
  */
-uint32_t mvDisablePrioritizedInterrupt(uint32_t irqn);
+uint32_t mvDisableFastInterrupt(uint32_t irqn);
 
 /**
- *  Disables all prioritized interrupts.
+ *  Disables all fast interrupts.
  */
-uint32_t mvDisableAllPrioritizedInterrupts(void);
+uint32_t mvDisableAllFastInterrupts(void);
 
 /**
- *  Undoes the effect of `mvDisableAllPrioritizedInterrupts`. Individual
+ *  Undoes the effect of `mvDisableAllFastInterrupts`. Individual
  *  enabled/disabled states still hold.
  */
-uint32_t mvEnableAllPrioritizedInterrupts(void);
+uint32_t mvEnableAllFastInterrupts(void);
 
 /**
  *  Applications can call `mvRequestNetwork` to ask Microvisor to bring up and keep up
@@ -590,10 +592,10 @@ uint32_t mvReadChannelComplete(MvChannelHandle handle, uint32_t consumed);
 /**
  *  Write to a channel in streaming mode. This will write
  *  as much of the data passed as it can to the channel,
- *  and report back the number of bytes that were written
+ *  and report back the number of bytes that were written.
  *
  * Parameters:
- * @param         handle          The handle of the channel to write to
+ * @param         handle          The handle of the channel to write to.
  * @param[in]     data            A pointer to the data to write to the channel.
  * @param         len             The number of bytes to write.
  * @param[out]    written         A pointer to a `uint32_t` in which the number of bytes written will be stored.
@@ -673,7 +675,7 @@ uint32_t mvSendHttpRequest(MvChannelHandle handle, const struct MvHttpRequest *r
  *
  * Parameters:
  * @param         handle          The handle of the channel on which the response was received.
- * @param[out]    response_data    The result of the HTTP request
+ * @param[out]    response_data    The result of the HTTP request.
  *
  * @retval MV_STATUS_PARAMETERFAULT `response_data` is an illegal pointer.
  * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid HTTP channel handle.
@@ -689,13 +691,13 @@ uint32_t mvReadHttpResponseData(MvChannelHandle handle, struct MvHttpResponseDat
  * @param         handle          The handle of the channel on which the response was received.
  * @param         header_index    The index of the header to read.
  * @param[out]    buf             The buffer into which to copy the header data.
- * @param         size            The size in bytes of `buf`
+ * @param         size            The size of `buf` in bytes.
  *
- * @retval MV_STATUS_PARAMETERFAULT `buf` is an illegal pointer
+ * @retval MV_STATUS_PARAMETERFAULT `buf` is an illegal pointer.
  * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid HTTP channel handle.
  * @retval MV_STATUS_RESPONSENOTPRESENT No HTTP response is present.
  * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
- * @retval MV_STATUS_HEADERINDEXINVALID `header_index` is out of bounds
+ * @retval MV_STATUS_HEADERINDEXINVALID `header_index` is out of bounds.
  */
 uint32_t mvReadHttpResponseHeader(MvChannelHandle handle, uint32_t header_index, uint8_t *buf, uint32_t size);
 
@@ -706,15 +708,43 @@ uint32_t mvReadHttpResponseHeader(MvChannelHandle handle, uint32_t header_index,
  * @param         handle          The handle of the channel on which the response was received.
  * @param         offset          The byte offset from the start of the body to read from.
  * @param[out]    buf             The buffer into which to copy the body data.
- * @param         size            The size in bytes of `buf`
+ * @param         size            The size of `buf` in bytes.
  *
- * @retval MV_STATUS_PARAMETERFAULT `buf` is an illegal pointer
+ * @retval MV_STATUS_PARAMETERFAULT `buf` is an illegal pointer.
  * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid HTTP channel handle.
  * @retval MV_STATUS_RESPONSENOTPRESENT No HTTP response is present.
  * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
- * @retval MV_STATUS_OFFSETINVALID `offset` exceeds the size of the returned body
+ * @retval MV_STATUS_OFFSETINVALID `offset` exceeds the size of the returned body.
  */
 uint32_t mvReadHttpResponseBody(MvChannelHandle handle, uint32_t offset, uint8_t *buf, uint32_t size);
+
+/**
+ *  Enable logging to the server.
+ *
+ * Parameters:
+ * @param[out]    buffer          The buffer to use for log  messages.
+ * @param         length_bytes    The size of `buffer` in bytes.
+ *
+ * @retval MV_STATUS_PARAMETERFAULT `buffer` is an illegal pointer.
+ * @retval MV_STATUS_INVALIDBUFFERALIGNMENT The value of `buffer` is not suitably aligned.
+ * @retval MV_STATUS_INVALIDBUFFERSIZE The value of `buffer` is mis-sized.
+ */
+uint32_t mvServerLoggingInit(uint8_t *buffer, uint32_t length_bytes);
+
+/**
+ *  Log a message to the server.
+ *
+ * Parameters:
+ * @param[in]     message         The log message to send to the server.
+ * @param         length_bytes    The size of `message` in bytes.
+ *
+ * @retval MV_STATUS_UNAVAILABLE Logging has not been enabled via `mvServerLoggingInit`.
+ * @retval MV_STATUS_PARAMETERFAULT `message` is an illegal pointer.
+ * @retval MV_STATUS_INVALIDBUFFERSIZE Not enough space in the buffer for the message.
+ * @retval MV_STATUS_LOGMESSAGETOOLONG `message` exceeds the maximum allowed size.
+ * @retval MV_STATUS_LOGGINGDISABLEDBYSERVER Logging has been disabled by the server.
+ */
+uint32_t mvServerLog(const uint8_t *message, uint16_t length_bytes);
 
 #ifdef __cplusplus
 } // extern "C"
