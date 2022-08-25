@@ -259,7 +259,7 @@ extern "C" {
 /**
  *  Does nothing, and returns `Status::Okay`.
  */
-uint32_t mvNoOp(void);
+enum MvStatus mvNoOp(void);
 
 /**
  *  Gets the current value of a free-running microsecond clock. This
@@ -272,7 +272,7 @@ uint32_t mvNoOp(void);
  *
  * @retval MV_STATUS_PARAMETERFAULT `ms` is an illegal pointer.
  */
-uint32_t mvGetMicroseconds(uint64_t *ms);
+enum MvStatus mvGetMicroseconds(uint64_t *ms);
 
 /**
  *  Gets the current frequency of the CPU clock.
@@ -282,7 +282,7 @@ uint32_t mvGetMicroseconds(uint64_t *ms);
  *
  * @retval MV_STATUS_PARAMETERFAULT `hz` is an illegal pointer.
  */
-uint32_t mvGetSysClk(uint32_t *hz);
+enum MvStatus mvGetSysClk(uint32_t *hz);
 
 /**
  *  Gets the current frequency of the AHB bus.
@@ -292,7 +292,7 @@ uint32_t mvGetSysClk(uint32_t *hz);
  *
  * @retval MV_STATUS_PARAMETERFAULT `hz` is an illegal pointer.
  */
-uint32_t mvGetHClk(uint32_t *hz);
+enum MvStatus mvGetHClk(uint32_t *hz);
 
 /**
  *  Gets the current frequency of the APB1 bus.
@@ -302,7 +302,7 @@ uint32_t mvGetHClk(uint32_t *hz);
  *
  * @retval MV_STATUS_PARAMETERFAULT `hz` is an illegal pointer.
  */
-uint32_t mvGetPClk1(uint32_t *hz);
+enum MvStatus mvGetPClk1(uint32_t *hz);
 
 /**
  *  Gets the current frequency of the APB2 bus/
@@ -312,7 +312,7 @@ uint32_t mvGetPClk1(uint32_t *hz);
  *
  * @retval MV_STATUS_PARAMETERFAULT `hz` is an illegal pointer.
  */
-uint32_t mvGetPClk2(uint32_t *hz);
+enum MvStatus mvGetPClk2(uint32_t *hz);
 
 /**
  *  Gets the current time in non-leap microseconds since the Unix
@@ -327,7 +327,7 @@ uint32_t mvGetPClk2(uint32_t *hz);
  * @retval MV_STATUS_PARAMETERFAULT `sec` is an illegal pointer.
  * @retval MV_STATUS_TIMENOTSET No wall time is available.
  */
-uint32_t mvGetWallTime(uint64_t *usec);
+enum MvStatus mvGetWallTime(uint64_t *usec);
 
 /**
  *  Test structure parameters`
@@ -338,7 +338,7 @@ uint32_t mvGetWallTime(uint64_t *usec);
  * @retval MV_STATUS_PARAMETERFAULT `in` is an illegal pointer.
  * @retval MV_STATUS_UNSUPPORTEDSTRUCTUREVERSION Structure version is not supported.
  */
-uint32_t mvTemporaryStructTest(const struct MvTemporaryTestVersionedStruct *in);
+enum MvStatus mvTemporaryStructTest(const struct MvTemporaryTestVersionedStruct *in);
 
 /**
  *  Returns the device's 34-byte unique ID code.
@@ -350,7 +350,7 @@ uint32_t mvTemporaryStructTest(const struct MvTemporaryTestVersionedStruct *in);
  * @retval MV_STATUS_PARAMETERFAULT `buf` is not entirely in non-secure memory.
  * @retval MV_STATUS_INVALIDBUFFERSIZE `buf` is not the correct size for result.
  */
-uint32_t mvGetDeviceId(uint8_t *buf, uint32_t len);
+enum MvStatus mvGetDeviceId(uint8_t *buf, uint32_t len);
 
 /**
  *  Read a peripheral register.
@@ -361,7 +361,7 @@ uint32_t mvGetDeviceId(uint8_t *buf, uint32_t len);
  *
  * @retval MV_STATUS_PERIPHERALACCESSFAULT An unsupported or non-word-aligned register address.
  */
-uint32_t mvPeriphPeek32(uint32_t reg, uint32_t *output);
+enum MvStatus mvPeriphPeek32(uint32_t reg, uint32_t *output);
 
 /**
  *  Write a peripheral register.
@@ -373,7 +373,7 @@ uint32_t mvPeriphPeek32(uint32_t reg, uint32_t *output);
  *
  * @retval MV_STATUS_PERIPHERALACCESSFAULT An unsupported or non-word-aligned register address.
  */
-uint32_t mvPeriphPoke32(uint32_t reg, uint32_t mask, uint32_t xorvalue);
+enum MvStatus mvPeriphPoke32(uint32_t reg, uint32_t mask, uint32_t xorvalue);
 
 /**
  *  Set up receipt of notifications via an interrupt.
@@ -399,7 +399,7 @@ uint32_t mvPeriphPoke32(uint32_t reg, uint32_t mask, uint32_t xorvalue);
  * @retval MV_STATUS_INVALIDINTERRUPT The IRQ specified is not usable by non-secure mode or is in use by a different notification object.
  * @retval MV_STATUS_TOOMANYNOTIFICATIONBUFFERS The limit of 32 simultaneously in use notification buffers has been reached.
  */
-uint32_t mvSetupNotifications(const struct MvNotificationSetup *notifications, MvNotificationHandle *handle_out);
+enum MvStatus mvSetupNotifications(const struct MvNotificationSetup *notifications, MvNotificationHandle *handle_out);
 
 /**
  *  Cease receipt of notifications previously set up by `mvSetupNotifications`.
@@ -416,7 +416,7 @@ uint32_t mvSetupNotifications(const struct MvNotificationSetup *notifications, M
  * @retval MV_STATUS_PARAMETERFAULT The pointer is not readable/writable.
  * @retval MV_STATUS_INVALIDHANDLE The handle is not valid, or does not identify a notification object.
  */
-uint32_t mvCloseNotifications(MvNotificationHandle *handle_in_out);
+enum MvStatus mvCloseNotifications(MvNotificationHandle *handle_in_out);
 
 /**
  *  Triggers a notification.
@@ -428,7 +428,7 @@ uint32_t mvCloseNotifications(MvNotificationHandle *handle_in_out);
  *
  * @retval MV_STATUS_INVALIDHANDLE The handle is not valid, or does not identify a notification object.
  */
-uint32_t mvTempTriggerNotification(MvNotificationHandle handle, uint32_t type, uint32_t tag);
+enum MvStatus mvTempTriggerNotification(MvNotificationHandle handle, uint32_t type, uint32_t tag);
 
 /**
  *  Sets the interrupt to be served with low latency.
@@ -440,7 +440,7 @@ uint32_t mvTempTriggerNotification(MvNotificationHandle handle, uint32_t type, u
  * @retval MV_STATUS_INVALIDVECTOR VTOR or interrupt vector is not in non-secure memory.
  * @retval MV_STATUS_UNAVAILABLE Fast interrupts are unavailable. Code is being shut down after a hung interrupt or interrupt flood.
  */
-uint32_t mvSetFastInterrupt(uint32_t irqn);
+enum MvStatus mvSetFastInterrupt(uint32_t irqn);
 
 /**
  *  Makes an interrupt previously set as fast with `mvSetFastInterrupt`
@@ -452,7 +452,7 @@ uint32_t mvSetFastInterrupt(uint32_t irqn);
  * @retval MV_STATUS_INVALIDINTERRUPT `irqn` is not available to non-secure code.
  * @retval MV_STATUS_UNAVAILABLE Fast interrupts are unavailable. Code is being shut down after a hung interrupt or interrupt flood.
  */
-uint32_t mvClearFastInterrupt(uint32_t irqn);
+enum MvStatus mvClearFastInterrupt(uint32_t irqn);
 
 /**
  *  Enables a fast interrupt.
@@ -463,7 +463,7 @@ uint32_t mvClearFastInterrupt(uint32_t irqn);
  * @retval MV_STATUS_INVALIDINTERRUPT `irqn` is not available to non-secure code.
  * @retval MV_STATUS_UNAVAILABLE Fast interrupts are unavailable. Code is being shut down after a hung interrupt or interrupt flood.
  */
-uint32_t mvEnableFastInterrupt(uint32_t irqn);
+enum MvStatus mvEnableFastInterrupt(uint32_t irqn);
 
 /**
  *  Disables a previously enabled fast interrupt.
@@ -474,18 +474,18 @@ uint32_t mvEnableFastInterrupt(uint32_t irqn);
  * @retval MV_STATUS_INVALIDINTERRUPT `irqn` is not available to non-secure code.
  * @retval MV_STATUS_UNAVAILABLE Fast interrupts are unavailable. Code is being shut down after a hung interrupt or interrupt flood.
  */
-uint32_t mvDisableFastInterrupt(uint32_t irqn);
+enum MvStatus mvDisableFastInterrupt(uint32_t irqn);
 
 /**
  *  Disables all fast interrupts.
  */
-uint32_t mvDisableAllFastInterrupts(void);
+enum MvStatus mvDisableAllFastInterrupts(void);
 
 /**
  *  Undoes the effect of `mvDisableAllFastInterrupts`. Individual
  *  enabled/disabled states still hold.
  */
-uint32_t mvEnableAllFastInterrupts(void);
+enum MvStatus mvEnableAllFastInterrupts(void);
 
 /**
  *  Applications can call `mvRequestNetwork` to ask Microvisor to bring up and keep up
@@ -499,7 +499,7 @@ uint32_t mvEnableAllFastInterrupts(void);
  * @retval MV_STATUS_PARAMETERFAULT `params` or `handle` does not reference memory accessible to the application.
  * @retval MV_STATUS_UNSUPPORTEDSTRUCTUREVERSION Structure version is not supported.
  */
-uint32_t mvRequestNetwork(const struct MvRequestNetworkParams *params, MvNetworkHandle *handle);
+enum MvStatus mvRequestNetwork(const struct MvRequestNetworkParams *params, MvNetworkHandle *handle);
 
 /**
  *  Release the network request associated with the handle and the associated
@@ -512,7 +512,7 @@ uint32_t mvRequestNetwork(const struct MvRequestNetworkParams *params, MvNetwork
  * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid network handle.
  * @retval MV_STATUS_UNSUPPORTEDSTRUCTUREVERSION Structure version is not supported.
  */
-uint32_t mvReleaseNetwork(MvNetworkHandle *handle);
+enum MvStatus mvReleaseNetwork(MvNetworkHandle *handle);
 
 /**
  *  Get the current network status, i.e., whether the device is connected
@@ -525,7 +525,7 @@ uint32_t mvReleaseNetwork(MvNetworkHandle *handle);
  * @retval MV_STATUS_PARAMETERFAULT `status` or `handle` does not reference memory accessible to the application.
  * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid network handle.
  */
-uint32_t mvGetNetworkStatus(MvNetworkHandle handle, enum MvNetworkStatus *status);
+enum MvStatus mvGetNetworkStatus(MvNetworkHandle handle, enum MvNetworkStatus *status);
 
 /**
  *  Obtain the current network connectivity reasons and number of
@@ -537,7 +537,7 @@ uint32_t mvGetNetworkStatus(MvNetworkHandle handle, enum MvNetworkStatus *status
  *
  * @retval MV_STATUS_PARAMETERFAULT `reasons` or `request_ref_count` does not reference memory accessible to the application.
  */
-uint32_t mvGetNetworkReasons(enum MvNetworkReason *reasons, uint32_t *request_ref_count);
+enum MvStatus mvGetNetworkReasons(enum MvNetworkReason *reasons, uint32_t *request_ref_count);
 
 /**
  *  Open a data transfer channel.
@@ -561,7 +561,7 @@ uint32_t mvGetNetworkReasons(enum MvNetworkReason *reasons, uint32_t *request_re
  * @retval MV_STATUS_UNAVAILABLE The channel could not be opened at this time.
  * @retval MV_STATUS_TOOMANYCHANNELS The limit of four simultaneously in use channels has been reached.
  */
-uint32_t mvOpenChannel(const struct MvOpenChannelParams *params, MvChannelHandle *handle);
+enum MvStatus mvOpenChannel(const struct MvOpenChannelParams *params, MvChannelHandle *handle);
 
 /**
  *  Read from a channel.
@@ -575,7 +575,7 @@ uint32_t mvOpenChannel(const struct MvOpenChannelParams *params, MvChannelHandle
  * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid channel handle.
  * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
  */
-uint32_t mvReadChannel(MvChannelHandle handle, uint8_t **read_pointer_out, uint32_t *length_out);
+enum MvStatus mvReadChannel(MvChannelHandle handle, uint8_t **read_pointer_out, uint32_t *length_out);
 
 /**
  *  Signal that reading from a channel is complete.
@@ -587,7 +587,7 @@ uint32_t mvReadChannel(MvChannelHandle handle, uint8_t **read_pointer_out, uint3
  * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid channel handle.
  * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
  */
-uint32_t mvReadChannelComplete(MvChannelHandle handle, uint32_t consumed);
+enum MvStatus mvReadChannelComplete(MvChannelHandle handle, uint32_t consumed);
 
 /**
  *  Write to a channel in streaming mode. This will write
@@ -605,7 +605,7 @@ uint32_t mvReadChannelComplete(MvChannelHandle handle, uint32_t consumed);
  * @retval MV_STATUS_LATEFAULT `written` is not a valid pointer, but data has been written.
  * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
  */
-uint32_t mvWriteChannelStream(MvChannelHandle handle, const uint8_t *data, uint32_t len, uint32_t *written);
+enum MvStatus mvWriteChannelStream(MvChannelHandle handle, const uint8_t *data, uint32_t len, uint32_t *written);
 
 /**
  *  Write to a channel. This will only write to the channel
@@ -629,7 +629,7 @@ available in the channel's write buffer will be stored.
  * @retval MV_STATUS_LATEFAULT `available` is not a valid pointer, but data has been written.
  * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
  */
-uint32_t mvWriteChannel(MvChannelHandle handle, const uint8_t *data, uint32_t len, uint32_t *available);
+enum MvStatus mvWriteChannel(MvChannelHandle handle, const uint8_t *data, uint32_t len, uint32_t *available);
 
 /**
  *  Close a channel.
@@ -640,7 +640,7 @@ uint32_t mvWriteChannel(MvChannelHandle handle, const uint8_t *data, uint32_t le
  * @retval MV_STATUS_PARAMETERFAULT The supplied pointer is not readable or writable.
  * @retval MV_STATUS_INVALIDHANDLE The specified handle is not a valid channel handle.
  */
-uint32_t mvCloseChannel(MvChannelHandle *handle);
+enum MvStatus mvCloseChannel(MvChannelHandle *handle);
 
 /**
  *  Discover why a channel was closed.
@@ -652,7 +652,7 @@ uint32_t mvCloseChannel(MvChannelHandle *handle);
  * @retval MV_STATUS_PARAMETERFAULT The supplied pointer is not readable or writable.
  * @retval MV_STATUS_INVALIDHANDLE The specified handle is not a valid channel handle.
  */
-uint32_t mvGetChannelClosureReason(MvChannelHandle handle, enum MvClosureReason *reason_out);
+enum MvStatus mvGetChannelClosureReason(MvChannelHandle handle, enum MvClosureReason *reason_out);
 
 /**
  *  Send HTTP request to a channel.
@@ -668,7 +668,7 @@ uint32_t mvGetChannelClosureReason(MvChannelHandle handle, enum MvClosureReason 
  * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
  * @retval MV_STATUS_REQUESTALREADYSENT The request has already been sent either successfully or not.
  */
-uint32_t mvSendHttpRequest(MvChannelHandle handle, const struct MvHttpRequest *request);
+enum MvStatus mvSendHttpRequest(MvChannelHandle handle, const struct MvHttpRequest *request);
 
 /**
  *  Read the status of an HTTP response on a channel.
@@ -682,7 +682,7 @@ uint32_t mvSendHttpRequest(MvChannelHandle handle, const struct MvHttpRequest *r
  * @retval MV_STATUS_RESPONSENOTPRESENT No HTTP response is present.
  * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
  */
-uint32_t mvReadHttpResponseData(MvChannelHandle handle, struct MvHttpResponseData *response_data);
+enum MvStatus mvReadHttpResponseData(MvChannelHandle handle, struct MvHttpResponseData *response_data);
 
 /**
  *  Read header data from an HTTP response.
@@ -699,7 +699,7 @@ uint32_t mvReadHttpResponseData(MvChannelHandle handle, struct MvHttpResponseDat
  * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
  * @retval MV_STATUS_HEADERINDEXINVALID `header_index` is out of bounds.
  */
-uint32_t mvReadHttpResponseHeader(MvChannelHandle handle, uint32_t header_index, uint8_t *buf, uint32_t size);
+enum MvStatus mvReadHttpResponseHeader(MvChannelHandle handle, uint32_t header_index, uint8_t *buf, uint32_t size);
 
 /**
  *  Read body data from an HTTP response.
@@ -716,7 +716,7 @@ uint32_t mvReadHttpResponseHeader(MvChannelHandle handle, uint32_t header_index,
  * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
  * @retval MV_STATUS_OFFSETINVALID `offset` exceeds the size of the returned body.
  */
-uint32_t mvReadHttpResponseBody(MvChannelHandle handle, uint32_t offset, uint8_t *buf, uint32_t size);
+enum MvStatus mvReadHttpResponseBody(MvChannelHandle handle, uint32_t offset, uint8_t *buf, uint32_t size);
 
 /**
  *  Enable logging to the server.
@@ -729,7 +729,7 @@ uint32_t mvReadHttpResponseBody(MvChannelHandle handle, uint32_t offset, uint8_t
  * @retval MV_STATUS_INVALIDBUFFERALIGNMENT The value of `buffer` is not suitably aligned.
  * @retval MV_STATUS_INVALIDBUFFERSIZE The value of `buffer` is mis-sized.
  */
-uint32_t mvServerLoggingInit(uint8_t *buffer, uint32_t length_bytes);
+enum MvStatus mvServerLoggingInit(uint8_t *buffer, uint32_t length_bytes);
 
 /**
  *  Log a message to the server.
@@ -744,7 +744,7 @@ uint32_t mvServerLoggingInit(uint8_t *buffer, uint32_t length_bytes);
  * @retval MV_STATUS_LOGMESSAGETOOLONG `message` exceeds the maximum allowed size.
  * @retval MV_STATUS_LOGGINGDISABLEDBYSERVER Logging has been disabled by the server.
  */
-uint32_t mvServerLog(const uint8_t *message, uint16_t length_bytes);
+enum MvStatus mvServerLog(const uint8_t *message, uint16_t length_bytes);
 
 #ifdef __cplusplus
 } // extern "C"
