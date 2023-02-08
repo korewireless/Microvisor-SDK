@@ -27,14 +27,23 @@ enum MvStatus {
     MV_STATUS_NETWORKNOTCONNECTED  = 0x10, //< The network operation could not be actioned because the device is offline.
     MV_STATUS_RATELIMITED          = 0x11, //< The operation has been called too often. Try again later.
     MV_STATUS_INVALIDBUFFERALIGNMENT = 0x12, //< Indicates the buffer alignment provided is not sufficient for the function called.
-    MV_STATUS_LATEFAULT            = 0x13, //< Indicates the fault after an action was taken, e.g. error writing result of a successful operation.
+    MV_STATUS_LATEFAULT            = 0x13, //< Indicates the fault after an action was taken, e.g., error writing result of a successful operation.
     MV_STATUS_RESPONSENOTPRESENT   = 0x14, //< There is no HTTP response to read.
-    MV_STATUS_HEADERINDEXINVALID   = 0x15, //< The HTTP header index is out of bounds.
-    MV_STATUS_OFFSETINVALID        = 0x16, //< THe offset into the http response body exceeds its size.
+    MV_STATUS_INDEXINVALID         = 0x15, //< The index of a requested item is invalid.
+    MV_STATUS_OFFSETINVALID        = 0x16, //< The offset into the http response body exceeds its size.
     MV_STATUS_REQUESTALREADYSENT   = 0x17, //< Request has already been sent, can't do it again over the same channel.
     MV_STATUS_REQUESTUNSUCCESSFUL  = 0x18, //< Request has failed, data can't be read.
     MV_STATUS_LOGMESSAGETOOLONG    = 0x19, //< The log message exceeds the maximum allowed size.
     MV_STATUS_LOGGINGDISABLEDBYSERVER = 0x1a, //< The server has disabled logging.
+    MV_STATUS_TOOMANYCONFIGKEYS    = 0x1b, //< Too many config keys are being requested simultaneously.
+    MV_STATUS_UNKNOWNCONFIGSTORE   = 0x1c, //< The config store type is unknown.
+    MV_STATUS_UNKNOWNCONFIGSCOPE   = 0x1d, //< The config item scope is unknown.
+    MV_STATUS_INVALIDCONFIGKEY     = 0x1e, //< The config key is invalid. Only printable Ascii is allowed.
+    MV_STATUS_INVALIDAUTHENTICATION = 0x1f, //< The authentication supplied is invalid.
+    MV_STATUS_WRONGDATAREQUESTED   = 0x20, //< The data requested is not what the queried object has.
+    MV_STATUS_INTERNALERROR        = 0x21, //< Unexpected internal error.
+    MV_STATUS_TOOMANYELEMENTS      = 0x22, //< Too many elements. Meaning of the element depends on request type.
+    MV_STATUS_REQUIREDELEMENTMISSING = 0x23, //< A required element is missing from a request.
     MV_STATUS__MAX                 = 0xffffffff, //< Ensure use of correct underlying size.
 };
 
@@ -79,7 +88,7 @@ enum MvEventType {
 };
 
 struct MvNotification {
-    /// When this notification was issued. This is the same time basis as `mvGetMicroseconds`.
+    /// When this notification was issued. This is the same time basis as `mvGetMicroseconds()`.
     uint64_t microseconds;
     /// The type of event that triggered the notification.
     enum MvEventType event_type;
@@ -96,7 +105,7 @@ struct MvNotificationSetup {
     uint32_t buffer_size;
 };
 
-/// An opaque handle to a notification object. This is a 32-bit value chosen randomly by Microvisor.  Zero is never a valid handle.
+/// An opaque handle to a notification object. This is a 32-bit value chosen randomly by Microvisor. Zero is never a valid handle.
 
 typedef struct MvNotificationHandleOpaque *MvNotificationHandle;
 
@@ -132,13 +141,13 @@ enum MvNetworkStatus {
  */
 enum MvNetworkReason {
     MV_NETWORKREASON_NOTCONNECTING = 0x0, //< No pending connection attempts and connections not being prevented.
-    MV_NETWORKREASON_USINGNETWORK  = 0x1, //< Application is using the network.
-    MV_NETWORKREASON_NEVERUSEDNETWORKAPI = 0x2, //< Application has not yet used the networking API.
-    MV_NETWORKREASON_MINIMUMCHECKINEXPIRED = 0x4, //< Minimum check-in period has been reached.
-    MV_NETWORKREASON_RTCNOTSET     = 0x8, //< RTC is not yet set.
+    MV_NETWORKREASON_USINGNETWORK  = 0x1, //< The application is using the network.
+    MV_NETWORKREASON_NEVERUSEDNETWORKAPI = 0x2, //< The application has not yet used the networking API.
+    MV_NETWORKREASON_MINIMUMCHECKINEXPIRED = 0x4, //< The minimum check-in period has been reached.
+    MV_NETWORKREASON_RTCNOTSET     = 0x8, //< The RTC is not yet set.
     MV_NETWORKREASON_KERNELERROR   = 0x10, //< A kernel error requires reporting.
     MV_NETWORKREASON_APPLICATIONERROR = 0x20, //< An application error requires reporting.
-    MV_NETWORKREASON_COLDBOOTCONNECTION = 0x40, //< Connection needed on cold boot for updates.
+    MV_NETWORKREASON_COLDBOOTCONNECTION = 0x40, //< A connection is needed on cold boot for updates.
     MV_NETWORKREASON_FETCHINGUPDATE = 0x80, //< An update is being fetched in the background.
     MV_NETWORKREASON_DEBUGGERATTACHED = 0x100, //< A debugging session is attached.
     MV_NETWORKREASON_NOAPPLICATIONCODE = 0x200, //< No application code is present.
@@ -151,8 +160,17 @@ enum MvNetworkReason {
  */
 enum MvChannelType {
     MV_CHANNELTYPE_OPAQUEBYTES     = 0x0, //< The channel carries opaque bytes.
+    MV_CHANNELTYPE_MQTT            = 0x1, //< The channel carries MQTT data.
     MV_CHANNELTYPE_HTTP            = 0x2, //< The channel carries HTTP data.
+    MV_CHANNELTYPE_CONFIGFETCH     = 0x3, //< The channel carries configuration and secrets data.
     MV_CHANNELTYPE__MAX            = 0xffffffff, //< Ensure use of correct underlying size.
+};
+
+struct MvSizedString {
+    /// String data. Need not be nul-terminated.
+    const uint8_t *data;
+    /// The length of the string in bytes.
+    uint32_t length;
 };
 
 struct MvOpenChannelParams {
@@ -175,10 +193,8 @@ struct MvOpenChannelParams {
             uint32_t send_buffer_len;
             /// The type of content carried by the channel.
             enum MvChannelType channel_type;
-            /// Pointer to an endpoint identifier for cloud configuration.
-            const uint8_t *endpoint;
-            /// The length of `endpoint` in bytes.
-            uint32_t endpoint_len;
+            /// Endpoint identifier for cloud configuration.
+            struct MvSizedString endpoint;
         } v1;
     };
 };
@@ -196,6 +212,9 @@ enum MvClosureReason {
     MV_CLOSUREREASON_CHANNELRESETBYSERVER = 0x2, //< The channel was reset by the server.
     MV_CLOSUREREASON_NETWORKDISCONNECTED = 0x3, //< The channel was closed due to a network disconnection.
     MV_CLOSUREREASON_CONNECTIONTERMINATED = 0x4, //< The connection to the server was terminated due to an error.
+    MV_CLOSUREREASON_NOTYETOPEN    = 0x5, //< `mvOpenChannel()` was not called or failed on the channel.
+    MV_CLOSUREREASON_CLOSEDBYAPPLICATION = 0x6, //< `mvCloseChannel()` has been called.
+    MV_CLOSUREREASON_UNEXPECTEDLYTERMINATED = 0x7, //< The channel was terminated, but the reason is unclear.
     MV_CLOSUREREASON__MAX          = 0xffffffff, //< Ensure use of correct underlying size.
 };
 
@@ -208,21 +227,15 @@ struct MvHttpHeader {
 
 struct MvHttpRequest {
     /// HTTP method (GET, HEAD, POST, PUT, DELETE, PATCH or OPTIONS).
-    const uint8_t *method;
-    /// The length of the method string in bytes.
-    uint32_t method_len;
+    struct MvSizedString method;
     /// URL to access, only "https://" is supported.
-    const uint8_t *url;
-    /// The length of the URL string in bytes.
-    uint32_t url_len;
+    struct MvSizedString url;
     /// Number of headers in `headers` array.
     uint32_t num_headers;
     /// Headers for request.
     const struct MvHttpHeader *headers;
     /// Request body.
-    const uint8_t *body;
-    /// The length of the body in bytes.
-    uint32_t body_len;
+    struct MvSizedString body;
     /// Request timeout in milliseconds. Microvisor supports timeouts from 5000 to 10000 milliseconds.
     uint32_t timeout_ms;
 };
@@ -250,6 +263,323 @@ struct MvHttpResponseData {
     uint32_t num_headers;
     /// Length of response body in bytes.
     uint32_t body_length;
+};
+
+/**
+ *  The scope for a configuration item. This determines visibility across an entire account or a single device.
+ */
+enum MvConfigKeyFetchScope {
+    MV_CONFIGKEYFETCHSCOPE_ACCOUNT = 0x0, //< The requested key is scoped to all devices on the associated account.
+    MV_CONFIGKEYFETCHSCOPE_DEVICE  = 0x1, //< The requested key is scoped solely to the subject device.
+    MV_CONFIGKEYFETCHSCOPE__MAX    = 0xffffffff, //< Ensure use of correct underlying size.
+};
+
+/**
+ *  The store for a configuration item. This determines whether a given key is write-only or read/write from the perspective of the Microvisor web facing REST API.
+ */
+enum MvConfigKeyFetchStore {
+    MV_CONFIGKEYFETCHSTORE_SECRET  = 0x0, //< The requested key is in the web API write-only store.
+    MV_CONFIGKEYFETCHSTORE_CONFIG  = 0x1, //< The requested key is in the web API readable/writable store.
+    MV_CONFIGKEYFETCHSTORE__MAX    = 0xffffffff, //< Ensure use of correct underlying size.
+};
+
+struct MvConfigKeyToFetch {
+    /// The scope for the requested item.
+    enum MvConfigKeyFetchScope scope;
+    /// The store in which the requested item is located: per device or per account.
+    enum MvConfigKeyFetchStore store;
+    /// The key name for the requested item.
+    struct MvSizedString key;
+};
+
+struct MvConfigKeyFetchParams {
+    /// The number of fetch requests in the `keys_to_fetch` array.
+    uint32_t num_items;
+    /// An array of fetch requests.
+    const struct MvConfigKeyToFetch *keys_to_fetch;
+};
+
+/**
+ *  Response result for the overall config fetch request.
+ */
+enum MvConfigFetchResult {
+    MV_CONFIGFETCHRESULT_OK        = 0x0, //< The fetch operation succeeded.
+    MV_CONFIGFETCHRESULT_RESPONSETOOLARGE = 0x1, //< The resulting response was too large.
+    MV_CONFIGFETCHRESULT__MAX      = 0xffffffff, //< Ensure use of correct underlying size.
+};
+
+struct MvConfigResponseData {
+    /// The result of the overall fetch request.
+    enum MvConfigFetchResult result;
+    /// The number of items returned by the fetch request. The order of the returned items matches the item request order.
+    uint32_t num_items;
+};
+
+/**
+ *  Response result for an individual key fetch request.
+ */
+enum MvConfigKeyFetchResult {
+    MV_CONFIGKEYFETCHRESULT_OK     = 0x0, //< The requested item was found.
+    MV_CONFIGKEYFETCHRESULT_KEYNOTFOUND = 0x1, //< The requested item was not found.
+    MV_CONFIGKEYFETCHRESULT_SERVERERROR = 0x2, //< The request resulted in a server error.
+    MV_CONFIGKEYFETCHRESULT__MAX   = 0xffffffff, //< Ensure use of correct underlying size.
+};
+
+struct MvSizedStringBuffer {
+    /// A buffer into which Microvisor will write string data.
+    uint8_t *data;
+    /// The size of the buffer in bytes.
+    uint32_t size;
+    /// The number of bytes actually written.
+    uint32_t *length;
+};
+
+struct MvConfigResponseReadItemParams {
+    /// The index of the fetched item to read.
+    uint32_t item_index;
+    /// A pointer to the memory to copy the result of the fetch into.
+    enum MvConfigKeyFetchResult *result;
+    /// A buffer into which to copy the fetched item.
+    struct MvSizedStringBuffer buf;
+};
+
+/**
+ *  Indicates what data is readable for an MQTT channel.
+ */
+enum MvMqttReadableDataType {
+    MV_MQTTREADABLEDATATYPE_NONE   = 0x0, //< No unconsumed data is available at this time.
+    MV_MQTTREADABLEDATATYPE_MESSAGERECEIVED = 0x1, //< A message is ready for consumption.
+    MV_MQTTREADABLEDATATYPE_MESSAGELOST = 0x2, //< A message was lost; details are available.
+    MV_MQTTREADABLEDATATYPE_CONNECTRESPONSE = 0x3, //< A response to a connect request is available.
+    MV_MQTTREADABLEDATATYPE_SUBSCRIBERESPONSE = 0x4, //< A response to a subscribe request is available.
+    MV_MQTTREADABLEDATATYPE_UNSUBSCRIBERESPONSE = 0x5, //< A response to an unsubscribe request is available.
+    MV_MQTTREADABLEDATATYPE_PUBLISHRESPONSE = 0x6, //< A response to a publish request is available.
+    MV_MQTTREADABLEDATATYPE_DISCONNECTRESPONSE = 0x7, //< A response to a disconnect operation is available.
+    MV_MQTTREADABLEDATATYPE__MAX   = 0xffffffff, //< Ensure use of correct underlying size.
+};
+
+/**
+ *  MQTT version to speak with remote broker.
+ */
+enum MvMqttProtocolVersion {
+    MV_MQTTPROTOCOLVERSION_V3_1_1  = 0x0, //< MQTT version 3.1.1.
+    MV_MQTTPROTOCOLVERSION_V5      = 0x1, //< MQTT version 5.
+    MV_MQTTPROTOCOLVERSION__MAX    = 0xffffffff, //< Ensure use of correct underlying size.
+};
+
+/**
+ *  MQTT authentication method (v5 only).
+ */
+enum MvMqttAuthenticationMethod {
+    MV_MQTTAUTHENTICATIONMETHOD_NONE = 0x0, //< No authentication used.
+    MV_MQTTAUTHENTICATIONMETHOD_USERNAMEPASSWORD = 0x1, //< Standard authentication with username and password.
+    MV_MQTTAUTHENTICATIONMETHOD__MAX = 0xff, //< Ensure use of correct underlying size.
+};
+
+struct MvUsernamePassword {
+    /// A username for authentication.
+    struct MvSizedString username;
+    /// A password for authentication.
+    struct MvSizedString password;
+};
+
+struct MvMqttAuthentication {
+    /// The required authentication method.
+    enum MvMqttAuthenticationMethod method;
+    /// Authentication credentials in the form of a username/password pair.
+    struct MvUsernamePassword username_password;
+};
+
+struct MvTlsCertificateChain {
+    /// The number of certificates in the `certs` array.
+    uint32_t num_certs;
+    /// An array of the certificate(s) in the chain.
+    const struct MvSizedString *certs;
+};
+
+struct MvOwnTlsCertificateChain {
+    /// A certificate chain.
+    struct MvTlsCertificateChain chain;
+    /// A certificate key.
+    struct MvSizedString key;
+};
+
+struct MvTlsCredentials {
+    /// The server's Certificate Authority certificate.
+    struct MvTlsCertificateChain cacert;
+    /// The client certificate and key for TLS client authentication.
+    struct MvOwnTlsCertificateChain clientcert;
+};
+
+struct MvMqttWill {
+    /// The broker's Will topic.
+    struct MvSizedString topic;
+    /// The Will payload.
+    struct MvSizedString payload;
+    /// The Will MQTT Quality of Service level.
+    uint32_t qos;
+    /// A flag indicating whether the message should be the Will topic's retained message.
+    uint8_t retain;
+};
+
+struct MvMqttConnectRequest {
+    /// The MQTT protocol version used by the target broker.
+    enum MvMqttProtocolVersion protocol_version;
+    /// The target MQTT broker's hostname or IP address.
+    struct MvSizedString host;
+    /// The target MQTT broker's port number.
+    uint16_t port;
+    /// An MQTT client identifier (utf-8).
+    struct MvSizedString clientid;
+    /// MQTT Authentication credentials.
+    struct MvMqttAuthentication authentication;
+    /// TLS credentials.
+    const struct MvTlsCredentials *tls_credentials;
+    /// The connection keepalive interval in seconds.
+    uint32_t keepalive;
+    /// A flag indicating whether the session should be cleaned upon termination.
+    uint8_t clean_start;
+    /// An optional Will message for the connection.
+    const struct MvMqttWill *will;
+};
+
+/**
+ *  Result state of a given MQTT operation.
+ */
+enum MvMqttRequestState {
+    MV_MQTTREQUESTSTATE_REQUESTCOMPLETED = 0x0, //< The request completed successfully.
+    MV_MQTTREQUESTSTATE_INVALIDPARAMETERS = 0x1, //< Invalid parameters provided in the request.
+    MV_MQTTREQUESTSTATE_ALREADYCONNECTED = 0x2, //< An MQTT connection was already attempted on this channel. Close the channel and open a fresh one.
+    MV_MQTTREQUESTSTATE_NOTCONNECTED = 0x3, //< The connection was not open or failed at the point the request was made.
+    MV_MQTTREQUESTSTATE_NXDOMAIN   = 0x4, //< Broker DNS resolution failed (MqttConnectResponse only).
+    MV_MQTTREQUESTSTATE_UNKNOWNCA  = 0x5, //< An unknown Certificate Authority was specified (MqttConnectResponse only).
+    MV_MQTTREQUESTSTATE_CERTIFICATEEXPIRED = 0x6, //< A certificate has expired (MqttConnectResponse only).
+    MV_MQTTREQUESTSTATE_SOCKETERROR = 0x7, //< Other socket error (MqttConnectResponse only).
+    MV_MQTTREQUESTSTATE_CONNECTIONCIRCUITBREAKER = 0x8, //< Microvisor server dropped the connection because incoming messages were rate limited.
+    MV_MQTTREQUESTSTATE__MAX       = 0xffffffff, //< Ensure use of correct underlying size.
+};
+
+struct MvMqttConnectResponse {
+    /// The status of the connection request.
+    enum MvMqttRequestState request_state;
+    /// An MQTT reason code as per specification.
+    uint32_t reason_code;
+};
+
+struct MvMqttSubscription {
+    /// The topic to subscribe to.
+    struct MvSizedString topic;
+    /// The desired MQTT Quality of Service level.
+    uint32_t desired_qos;
+    /// The request's desired no-local setting (v5 only).
+    uint32_t nl;
+    /// The request's desired retain-as-published setting (v5 only).
+    uint32_t rap;
+    /// The request's desired retain handling (v5 only).
+    uint32_t rh;
+};
+
+struct MvMqttSubscribeRequest {
+    /// A Correlation ID that will be returned in the response to this request. Requests may be fulfilled in a non-deterministic order.
+    uint32_t correlation_id;
+    /// An array of subscriptions.
+    const struct MvMqttSubscription *subscriptions;
+    /// The number of subscriptions in the `subscriptions` array.
+    uint32_t num_subscriptions;
+};
+
+struct MvMqttSubscribeResponse {
+    /// The result of the overall subscribe request.
+    enum MvMqttRequestState *request_state;
+    /// The operation's Correlation ID.
+    uint32_t *correlation_id;
+    /// A pointer to a results buffer which must be large enough to accept the `num_subscriptions` value of the subscribe request.
+    uint32_t *reason_codes;
+    /// The size of supplied codes buffer in bytes.
+    uint32_t reason_codes_size;
+    /// The number of reason codes written by Microvisor into the `reason_codes` array.
+    uint32_t *reason_codes_len;
+};
+
+struct MvMqttUnsubscribeRequest {
+    /// A Correlation ID that will be returned in the response to this request. Requests may be fulfilled in a non-deterministic order.
+    uint32_t correlation_id;
+    /// An array of topic names.
+    const struct MvSizedString *topics;
+    /// The number of topics in the `topics` array.
+    uint32_t num_topics;
+};
+
+struct MvMqttUnsubscribeResponse {
+    /// The result of the overall unsubscribe request.
+    enum MvMqttRequestState *request_state;
+    /// The operation's Correlation ID.
+    uint32_t *correlation_id;
+    /// A pointer to a results buffer which must be large enough to accept the `num_topics` value of the unsubscribe request.
+    uint32_t *reason_codes;
+    /// The size of supplied codes buffer in bytes.
+    uint32_t reason_codes_size;
+    /// The number of reason codes written by Microvisor into the `reason_codes` array.
+    uint32_t *reason_codes_len;
+};
+
+struct MvMqttPublishRequest {
+    /// A Correlation ID that will be returned in the response to this request. Requests may be fulfilled in a non-deterministic order.
+    uint32_t correlation_id;
+    /// The topic to publish the message to.
+    struct MvSizedString topic;
+    /// The message payload.
+    struct MvSizedString payload;
+    /// The MQTT Quality of Service level the broker is requested to deliver the message with.
+    uint32_t desired_qos;
+    /// A flag indicating whether the message should be the named topic's retained message.
+    uint32_t retain;
+};
+
+struct MvMqttPublishResponse {
+    /// The result of publish request.
+    enum MvMqttRequestState request_state;
+    /// The operation's Correlation ID.
+    uint32_t correlation_id;
+    /// The reason code returned by the broker. Will always be `0` for MQTT V3_1_1.
+    uint32_t reason_code;
+};
+
+struct MvMqttMessage {
+    /// The operation's Correlation ID.
+    uint32_t *correlation_id;
+    /// The topic via which the message was delivered.
+    struct MvSizedStringBuffer topic;
+    /// The message payload.
+    struct MvSizedStringBuffer payload;
+    /// The MQTT Quality of Service level the message was delivered with. If it is greater than `0`, you should acknowledge the message to avoid redelivery.
+    uint32_t *qos;
+    /// A flag indicating whether the message is the topic's retained message.
+    uint8_t *retain;
+};
+
+/**
+ *  Reason code for lost messages.
+ */
+enum MvMqttLostMessageReason {
+    MV_MQTTLOSTMESSAGEREASON_DEVICERECEIVEBUFFERTOOSMALL = 0x0, //< The buffer allocated by the application was insufficient to receive the message. Consider increasing the size of the channel's RX buffer.
+    MV_MQTTLOSTMESSAGEREASON__MAX  = 0xffffffff, //< Ensure use of correct underlying size.
+};
+
+struct MvMqttLostMessageInfo {
+    /// The reason the message was lost.
+    enum MvMqttLostMessageReason *reason;
+    /// The lost message's topic.
+    struct MvSizedStringBuffer topic;
+    /// The length of the lost message in bytes.
+    uint32_t *message_len;
+};
+
+struct MvMqttDisconnectResponse {
+    /// The result of the disconnect operation.
+    enum MvMqttRequestState request_state;
+    /// The disconnect code received from the broker.
+    uint32_t disconnect_code;
 };
 
 #ifdef __cplusplus
@@ -428,7 +758,7 @@ enum MvStatus mvCloseNotifications(MvNotificationHandle *handle_in_out);
  *
  * @retval MV_STATUS_INVALIDHANDLE The handle is not valid, or does not identify a notification object.
  */
-enum MvStatus mvTempTriggerNotification(MvNotificationHandle handle, uint32_t type, uint32_t tag);
+enum MvStatus mvTempTriggerNotification(MvNotificationHandle handle, enum MvEventType type, uint32_t tag);
 
 /**
  *  Sets the interrupt to be served with low latency.
@@ -655,7 +985,7 @@ enum MvStatus mvCloseChannel(MvChannelHandle *handle);
 enum MvStatus mvGetChannelClosureReason(MvChannelHandle handle, enum MvClosureReason *reason_out);
 
 /**
- *  Send HTTP request to a channel.
+ *  Send an HTTP request to a channel.
  *
  * Parameters:
  * @param         handle          The handle of the channel over which to send the request.
@@ -665,6 +995,7 @@ enum MvStatus mvGetChannelClosureReason(MvChannelHandle handle, enum MvClosureRe
  * @retval MV_STATUS_LATEFAULT Some of `request`'s nested pointers are illegal. The stream is not usable after that and should be closed.
  * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid HTTP channel handle.
  * @retval MV_STATUS_INVALIDBUFFERSIZE Request doesn't fit the send buffer.
+ * @retval MV_STATUS_TOOMANYELEMENTS Too many headers (>32) are attached to request.
  * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
  * @retval MV_STATUS_REQUESTALREADYSENT The request has already been sent either successfully or not.
  */
@@ -687,22 +1018,33 @@ enum MvStatus mvReadHttpResponseData(MvChannelHandle handle, struct MvHttpRespon
 /**
  *  Read header data from an HTTP response.
  *
+ *  This function does not tell you what the length of the header is.
+ *  Observe that HTTP headers may only contain printable Ascii characters,
+ *  so you can using a terminator character outside this (like `NUL` is used
+ *  in C) to learn the length after the call is complete. Ensure that if
+ *  the header length is precisely `size` bytes the termination is still
+ *  present.
+ *
  * Parameters:
  * @param         handle          The handle of the channel on which the response was received.
  * @param         header_index    The index of the header to read.
- * @param[out]    buf             The buffer into which to copy the header data.
+ * @param[out]    buf             The buffer into which to copy the header data; up to `size` bytes.
  * @param         size            The size of `buf` in bytes.
  *
  * @retval MV_STATUS_PARAMETERFAULT `buf` is an illegal pointer.
  * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid HTTP channel handle.
  * @retval MV_STATUS_RESPONSENOTPRESENT No HTTP response is present.
  * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
- * @retval MV_STATUS_HEADERINDEXINVALID `header_index` is out of bounds.
+ * @retval MV_STATUS_INDEXINVALID `header_index` is out of bounds.
  */
 enum MvStatus mvReadHttpResponseHeader(MvChannelHandle handle, uint32_t header_index, uint8_t *buf, uint32_t size);
 
 /**
  *  Read body data from an HTTP response.
+ *
+ *  To read the whole body, first learn its length using `mvReadHttpResponseData`.
+ *  Then call this function repeatedly for successive offsets. The final
+ *  read will only write the first bytes of `buf`; the remainder are left alone.
  *
  * Parameters:
  * @param         handle          The handle of the channel on which the response was received.
@@ -745,6 +1087,256 @@ enum MvStatus mvServerLoggingInit(uint8_t *buffer, uint32_t length_bytes);
  * @retval MV_STATUS_LOGGINGDISABLEDBYSERVER Logging has been disabled by the server.
  */
 enum MvStatus mvServerLog(const uint8_t *message, uint16_t length_bytes);
+
+/**
+ *  Send a configuration fetch request to a channel.
+ *
+ * Parameters:
+ * @param         handle          The handle of the channel over which to send the request.
+ * @param[in]     request         A pointer to the structure describing the request.
+ *
+ * @retval MV_STATUS_PARAMETERFAULT `request` is an illegal pointer.
+ * @retval MV_STATUS_LATEFAULT Some of `request`'s nested pointers are illegal. The channel is not usable after that and should be closed.
+ * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid fetch channel handle.
+ * @retval MV_STATUS_INVALIDBUFFERSIZE The request doesn't fit into the send buffer.
+ * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
+ * @retval MV_STATUS_REQUESTALREADYSENT The request has already been issued, successfully or not.
+ */
+enum MvStatus mvSendConfigFetchRequest(MvChannelHandle handle, const struct MvConfigKeyFetchParams *request);
+
+/**
+ *  Read the status of a configuration fetch response on a channel.
+ *
+ * Parameters:
+ * @param         handle          The handle of the channel on which the response was received.
+ * @param[out]    response_data    A pointer to the fetch request's response.
+ *
+ * @retval MV_STATUS_PARAMETERFAULT `response_data` is an illegal pointer.
+ * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
+ */
+enum MvStatus mvReadConfigFetchResponseData(MvChannelHandle handle, struct MvConfigResponseData *response_data);
+
+/**
+ *  Read configuration item data from a fetch response.
+ *
+ * Parameters:
+ * @param         handle          The handle of the channel on which the response was received.
+ * @param[in]     params          A pointer to the parameters that will be used to access the configuration item.
+ *
+ * @retval MV_STATUS_PARAMETERFAULT `params` is an illegal pointer.
+ * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid fetch channel handle.
+ * @retval MV_STATUS_RESPONSENOTPRESENT No configuration response is present.
+ * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
+ * @retval MV_STATUS_INDEXINVALID `MvMqttConfigResponseReadItemParams`'s `item_index` value is out of bounds.
+ */
+enum MvStatus mvReadConfigResponseItem(MvChannelHandle handle, const struct MvConfigResponseReadItemParams *params);
+
+/**
+ *  Determine what type of MQTT message a ChannelDataReadable event has been raised for.
+ *
+ * Parameters:
+ * @param         handle          The handle of the channel over which to obtain the data type.
+ * @param[out]    data_type       A pointer to memory into which Microvisor will write the data type.
+ *
+ * @retval MV_STATUS_PARAMETERFAULT `data_type` is an illegal pointer.
+ * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid MQTT channel handle.
+ * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
+ */
+enum MvStatus mvMqttGetNextReadableDataType(MvChannelHandle handle, enum MvMqttReadableDataType *data_type);
+
+/**
+ *  Initiate an MQTT connection request. Only one connect is permitted per channel life cycle. To connect again create a new channel.
+ *
+ * Parameters:
+ * @param         handle          The handle of the channel over which to send the request.
+ * @param[in]     request         A pointer to the structure describing the request.
+ *
+ * @retval MV_STATUS_PARAMETERFAULT `request` is an illegal pointer.
+ * @retval MV_STATUS_LATEFAULT Some of `request`'s nested pointers are illegal. The channel is not usable after that and should be closed.
+ * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid MQTT channel handle.
+ * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
+ * @retval MV_STATUS_REQUESTALREADYSENT A connection attempt has already been made on this channel.
+ * @retval MV_STATUS_INVALIDAUTHENTICATION Both `username_password` and `cert_key` were supplied which is invalid.
+ * @retval MV_STATUS_TOOMANYELEMENTS Too many (>8) certificates were included in either the CA or device certificate chains.
+ * @retval MV_STATUS_REQUIREDELEMENTMISSING Either host name, client ID, client key (if a client certificate is specified),
+or topic or payload of Will message (if specified) are missing.
+
+ */
+enum MvStatus mvMqttRequestConnect(MvChannelHandle handle, const struct MvMqttConnectRequest *request);
+
+/**
+ *  Read the MQTT connection response.
+ *
+ * Parameters:
+ * @param         handle          The handle of the channel via which the response was received.
+ * @param[out]    response_data    A pointer to the connection request's response.
+ *
+ * @retval MV_STATUS_PARAMETERFAULT `response_data` is an illegal pointer.
+ * @retval MV_STATUS_LATEFAULT One of `response_data`'s' nested pointers is illegal.
+ * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid MQTT channel handle.
+ * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
+ */
+enum MvStatus mvMqttReadConnectResponse(MvChannelHandle handle, struct MvMqttConnectResponse *response_data);
+
+/**
+ *  Initiate an MQTT subscription request. Only one subscribe request will be serviced at a time. Subscribing to multiple topics should be done with a single subscription request.
+ *
+ * Parameters:
+ * @param         handle          The handle of the channel over which to send the request.
+ * @param[in]     request         A pointer to the structure describing the request.
+ *
+ * @retval MV_STATUS_PARAMETERFAULT `request` or some of nested pointers are illegal.
+ * @retval MV_STATUS_LATEFAULT Some of `request`'s' nested pointers are illegal, and some data has already been sent. Channel cannot be used further.
+ * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid MQTT channel handle.
+ * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
+ * @retval MV_STATUS_RATELIMITED There are too many subscribe requests in flight.
+ * @retval MV_STATUS_TOOMANYELEMENTS Too many (>8) topics to subscribe to were included in the request.
+ */
+enum MvStatus mvMqttRequestSubscribe(MvChannelHandle handle, const struct MvMqttSubscribeRequest *request);
+
+/**
+ *  Read the MQTT subscription response.
+ *
+ * Parameters:
+ * @param         handle          The handle of the channel via which the response was received.
+ * @param[in]     response_data    A pointer to the subscription request's response.
+ *
+ * @retval MV_STATUS_PARAMETERFAULT `response_data` is an illegal pointer.
+ * @retval MV_STATUS_LATEFAULT One of `response_data`'s' nested pointers is illegal.
+ * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid MQTT channel handle.
+ * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
+ * @retval MV_STATUS_INVALIDBUFFERSIZE The provided buffer for response codes is too small.
+ */
+enum MvStatus mvMqttReadSubscribeResponse(MvChannelHandle handle, const struct MvMqttSubscribeResponse *response_data);
+
+/**
+ *  Initiate an MQTT unsubscribe request. Only one unsubscribe request will be serviced at a time. Unsubscribing to multiple topics should be done with a single unsubscribe request.
+ *
+ * Parameters:
+ * @param         handle          The handle of the channel over which to send the request.
+ * @param[in]     request         A pointer to the structure describing the request.
+ *
+ * @retval MV_STATUS_PARAMETERFAULT `request` is an illegal pointer.
+ * @retval MV_STATUS_LATEFAULT Some of `request`'s' nested pointers are illegal, and some data has already been sent. Channel cannot be used further.
+ * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid MQTT channel handle.
+ * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
+ * @retval MV_STATUS_RATELIMITED There are too many subscribe requests in flight.
+ * @retval MV_STATUS_TOOMANYELEMENTS Too many (>8) topics to unsubscribe were included in the request.
+ */
+enum MvStatus mvMqttRequestUnsubscribe(MvChannelHandle handle, const struct MvMqttUnsubscribeRequest *request);
+
+/**
+ *  Read the MQTT unsubscribe response.
+ *
+ * Parameters:
+ * @param         handle          The handle of the channel via which the response was received.
+ * @param[in]     response_data    A pointer to the unsubscribe request's response.
+ *
+ * @retval MV_STATUS_PARAMETERFAULT `response_data` is an illegal pointer.
+ * @retval MV_STATUS_LATEFAULT One of `response_data`'s' nested pointers is illegal.
+ * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid MQTT channel handle.
+ * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
+ * @retval MV_STATUS_INVALIDBUFFERSIZE The provided buffer for response codes is too small.
+ */
+enum MvStatus mvMqttReadUnsubscribeResponse(MvChannelHandle handle, const struct MvMqttUnsubscribeResponse *response_data);
+
+/**
+ *  Initiate an MQTT publish request.
+ *
+ * Parameters:
+ * @param         handle          The handle of the channel over which to send the request.
+ * @param[in]     request         A pointer to the structure describing the request.
+ *
+ * @retval MV_STATUS_PARAMETERFAULT `request` is an illegal pointer.
+ * @retval MV_STATUS_LATEFAULT Some of `request`'s' nested pointers are illegal, and some data has already been sent. Channel cannot be used further.
+ * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid MQTT channel handle.
+ * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
+ * @retval MV_STATUS_RATELIMITED There are too many subscribe requests in flight.
+ */
+enum MvStatus mvMqttRequestPublish(MvChannelHandle handle, const struct MvMqttPublishRequest *request);
+
+/**
+ *  Read the MQTT publish response.
+ *
+ * Parameters:
+ * @param         handle          The handle of the channel via which the response was received.
+ * @param[out]    response_data    A pointer to the publish request's response.
+ *
+ * @retval MV_STATUS_PARAMETERFAULT `response_data` is an illegal pointer.
+ * @retval MV_STATUS_LATEFAULT One of `response_data`'s' nested pointers is illegal.
+ * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid MQTT request channel handle.
+ * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
+ */
+enum MvStatus mvMqttReadPublishResponse(MvChannelHandle handle, struct MvMqttPublishResponse *response_data);
+
+/**
+ *  Obtain a received MQTT message.
+ *
+ * Parameters:
+ * @param         handle          The handle of the channel via which the message was received.
+ * @param[in]     message_data    A pointer to the message structure Microvisor will populate.
+ *
+ * @retval MV_STATUS_PARAMETERFAULT `message_data` is an illegal pointer.
+ * @retval MV_STATUS_LATEFAULT Some of `message_data`'s nested pointers are illegal.
+ * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid MQTT channel handle.
+ * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
+ * @retval MV_STATUS_INVALIDBUFFERSIZE Response data doesn't fit into one of the provided buffers.
+ */
+enum MvStatus mvMqttReceiveMessage(MvChannelHandle handle, const struct MvMqttMessage *message_data);
+
+/**
+ *  Obtain information about a lost MQTT message.
+ *
+ * Parameters:
+ * @param         handle          The handle of the channel via which the message was received.
+ * @param[in]     lost_message_info    A pointer to the lost message structure Microvisor will populate.
+ *
+ * @retval MV_STATUS_PARAMETERFAULT `lost_message_info` is an illegal pointer.
+ * @retval MV_STATUS_LATEFAULT Some of `lost_message_info`'s nested pointers are illegal.
+ * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid MQTT channel handle.
+ * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
+ * @retval MV_STATUS_INVALIDBUFFERSIZE Response data doesn't fit into one of the provided buffers.
+ */
+enum MvStatus mvMqttReceiveLostMessageInfo(MvChannelHandle handle, const struct MvMqttLostMessageInfo *lost_message_info);
+
+/**
+ *  Acknowledge receipt of an MQTT message that was received with QoS 1 or 2.
+ *
+ * Parameters:
+ * @param         handle          The handle of the channel via which the message was received.
+ * @param         correlation_id    The Correlation ID of the message that will be acknowledged.
+ *
+ * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid MQTT request channel handle.
+ * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
+ * @retval MV_STATUS_RATELIMITED Too many acknowledge message operations in flight.
+ */
+enum MvStatus mvMqttAcknowledgeMessage(MvChannelHandle handle, uint32_t correlation_id);
+
+/**
+ *  Request an explicit disconnection from the MQTT broker.
+ *
+ * Parameters:
+ * @param         handle          The handle of the channel over which to send the request.
+ *
+ * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid MQTT channel handle.
+ * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
+ * @retval MV_STATUS_RATELIMITED Too many disconnect requests in flight.
+ */
+enum MvStatus mvMqttRequestDisconnect(MvChannelHandle handle);
+
+/**
+ *  Read the MQTT disconnect response.
+ *
+ * Parameters:
+ * @param         handle          The handle of the channel via which the response was received.
+ * @param[out]    response_data    A pointer to the disconnect request's response.
+ *
+ * @retval MV_STATUS_PARAMETERFAULT `response_data` is an illegal pointer.
+ * @retval MV_STATUS_LATEFAULT Some of `response_data`'s nested pointers are illegal.
+ * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid MQTT channel handle.
+ * @retval MV_STATUS_CHANNELCLOSED The specified channel is already closed.
+ */
+enum MvStatus mvMqttReadDisconnectResponse(MvChannelHandle handle, struct MvMqttDisconnectResponse *response_data);
 
 #ifdef __cplusplus
 } // extern "C"
