@@ -1338,6 +1338,28 @@ enum MvStatus mvMqttRequestDisconnect(MvChannelHandle handle);
  */
 enum MvStatus mvMqttReadDisconnectResponse(MvChannelHandle handle, struct MvMqttDisconnectResponse *response_data);
 
+/**
+ *  Indicate to kernel that application testing has completed.
+ *
+ *  This system call only makes sense from application testing code.
+ *  If called elsewhere, `Unavailable` is returned.
+ *
+ *  The application testing code is stopped by this call.
+ *
+ *  If the application testing code indicates success (with `status` == 0)
+ *  the final application is installed from external flash (if present).
+ *
+ *  If the application testing code indicates failure (with `status` != 0)
+ *  no further application is run.  The testing code will be re-run
+ *  on reset.
+ *
+ * Parameters:
+ * @param         status          Result of the application testing.  Zero means success, other values mean failure and are opaque to the kernel.
+ *
+ * @retval MV_STATUS_UNAVAILABLE Called outside application testing mode.
+ */
+enum MvStatus mvTestingComplete(uint32_t status);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
