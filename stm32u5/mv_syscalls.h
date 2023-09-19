@@ -694,12 +694,25 @@ enum MvStatus mvGetDeviceId(uint8_t *buf, uint32_t len);
 enum MvStatus mvPeriphPeek32(uint32_t reg, uint32_t *output);
 
 /**
- *  Write a peripheral register.
+ *  Write a peripheral register in secure space. The result of this
+ *  operation is
+ *      `*reg = (*reg & ~mask) ^ xorvalue`
+ *  which means that
+ *  a) bits of the register where `mask` is 0 are being xor-ed with
+ *     respective bits of `xorvalue`
+ *  b) bits of the register where `mask` is ` are being set to the
+ *     value of respective bits of `xorvalue`
+ *  This mechanism lets you set, reset or toggle multiple bits in one
+ *  operation. E.g. `mvPeriphPoke(0x46020ca8, 0x00000003, 0x10000001)`
+ *  toggles bit 28, resets bit 1 and sets bit 0 of the register at the
+ *  address 0x46020ca8.
+ *  Microvisor will ignore requests to write bits that application is not
+ *  allowed to change while changing the bits it can on the same register.
  *
  * Parameters:
  * @param         reg             The address of the non-secure register being accessed.
- * @param         mask            A mask to indicate the the bits that will be affected by the write.
- * @param         xorvalue        A value to exclusive-or with the register's current contents.
+ * @param         mask            A mask to indicate the operation over bits (xor for `0` assign for `1`)
+ * @param         xorvalue        The argument to operation defined by `mask`.
  *
  * @retval MV_STATUS_PERIPHERALACCESSFAULT An unsupported or non-word-aligned register address.
  */
