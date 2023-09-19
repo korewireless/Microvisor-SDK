@@ -1373,6 +1373,34 @@ enum MvStatus mvMqttReadDisconnectResponse(MvChannelHandle handle, struct MvMqtt
  */
 enum MvStatus mvTestingComplete(uint32_t status);
 
+/**
+ *  Enable logging to the provisioning console during application test.
+ *
+ * Parameters:
+ * @param[out]    buffer          The buffer to use for log  messages.
+ * @param         length_bytes    The size of `buffer` in bytes.
+ *
+ * @retval MV_STATUS_PARAMETERFAULT `buffer` is an illegal pointer.
+ * @retval MV_STATUS_INVALIDBUFFERALIGNMENT The value of `buffer` is not suitably aligned.
+ * @retval MV_STATUS_INVALIDBUFFERSIZE The value of `buffer` is mis-sized.
+ * @retval MV_STATUS_UNAVAILABLE Called outside application testing mode.
+ */
+enum MvStatus mvTestLoggingInit(uint8_t *buffer, uint32_t length_bytes);
+
+/**
+ *  Log a message to the provisioning console during application test.
+ *
+ * Parameters:
+ * @param[in]     message         The log message to send to the server.
+ * @param         length_bytes    The size of `message` in bytes.
+ *
+ * @retval MV_STATUS_UNAVAILABLE Logging has not been enabled via `mvTestLoggingInit`.
+ * @retval MV_STATUS_PARAMETERFAULT `message` is an illegal pointer.
+ * @retval MV_STATUS_INVALIDBUFFERSIZE Not enough space in the buffer for the message.
+ * @retval MV_STATUS_LOGMESSAGETOOLONG `message` exceeds the maximum allowed size.
+ */
+enum MvStatus mvTestLog(const uint8_t *message, uint16_t length_bytes);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
