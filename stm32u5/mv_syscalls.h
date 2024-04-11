@@ -44,6 +44,7 @@ enum MvStatus {
     MV_STATUS_INTERNALERROR        = 0x21, //< Unexpected internal error.
     MV_STATUS_TOOMANYELEMENTS      = 0x22, //< Too many elements. Meaning of the element depends on request type.
     MV_STATUS_REQUIREDELEMENTMISSING = 0x23, //< A required element is missing from a request.
+    MV_STATUS_MICROVISORBUSY       = 0x24, //< Could not perform the operation, because Microvisor is
     MV_STATUS__MAX                 = 0xffffffff, //< Ensure use of correct underlying size.
 };
 
@@ -80,10 +81,11 @@ struct MvTemporaryTestVersionedStruct {
  */
 enum MvEventType {
     MV_EVENTTYPE_NOEVENT           = 0x0, //< Sentinel value meaning an illegal or absent event.
-    MV_EVENTTYPE_NETWORKSTATUSCHANGED = 0x1, //< Value defining a network state change event.
+    MV_EVENTTYPE_NETWORKSTATUSCHANGED = 0x1, //< Network state change event, "Network" event.
     MV_EVENTTYPE_CHANNELDATAREADABLE = 0x2, //< Event notifying of a channel-readable event.
     MV_EVENTTYPE_CHANNELDATAWRITESPACE = 0x3, //< Event notifying of a channel write space event.
     MV_EVENTTYPE_CHANNELNOTCONNECTED = 0x4, //< Event notifying of a channel becoming disconnected.
+    MV_EVENTTYPE_UPDATEDOWNLOADED  = 0x5, //< Network state change event, "Update" event.
     MV_EVENTTYPE__MAX              = 0xffffffff, //< Ensure use of correct underlying size.
 };
 
@@ -132,6 +134,7 @@ enum MvNetworkStatus {
     MV_NETWORKSTATUS_DELIBERATELYOFFLINE = 0x0, //< The device is not currently connected to the server.
     MV_NETWORKSTATUS_CONNECTED     = 0x1, //< The device is currently connecting to the server.
     MV_NETWORKSTATUS_CONNECTING    = 0x2, //< The device is currently connected to the server.
+    MV_NETWORKSTATUS_DISCONNECTEDWITHLINKUP = 0x3, //< The device is disconnected from the server, but network link is up.
     MV_NETWORKSTATUS__MAX          = 0xffffffff, //< Ensure use of correct underlying size.
 };
 
@@ -580,6 +583,81 @@ struct MvMqttDisconnectResponse {
     enum MvMqttRequestState request_state;
     /// The disconnect code received from the broker.
     uint32_t disconnect_code;
+};
+
+/**
+ *  Power saving mode. Currently refer to STM32U5 modes.
+ */
+enum MvPowerSavingMode {
+    MV_POWERSAVINGMODE_SLEEP       = 0x0, //< Sleep mode.
+    MV_POWERSAVINGMODE_STOP0       = 0x1, //< Stop 0.
+    MV_POWERSAVINGMODE_STOP1       = 0x2, //< Stop 1.
+    MV_POWERSAVINGMODE_STOP2       = 0x3, //< Stop 2.
+    MV_POWERSAVINGMODE_STOP3       = 0x4, //< Stop 3.
+    MV_POWERSAVINGMODE__MAX        = 0xff, //< Ensure use of correct underlying size.
+};
+
+/**
+ *  System-wide notification source.
+ */
+enum MvSystemNotificationSource {
+    MV_SYSTEMNOTIFICATIONSOURCE_NETWORK = 0x0, //< Events (just `NetworkStatusChanged` now) related to being connected to Microvisor cloud
+    MV_SYSTEMNOTIFICATIONSOURCE_UPDATE = 0x1, //< Events (just `UpdateDownloaded` now) related to application and kernel updates
+    MV_SYSTEMNOTIFICATIONSOURCE__MAX = 0xffffffff, //< Ensure use of correct underlying size.
+};
+
+struct MvOpenSystemNotificationParams {
+    /// The handle of the notification center that will dispatch notifications.
+    MvNotificationHandle notification_handle;
+    /// A value which allows you to reference the source of the notification.
+    uint32_t notification_tag;
+    /// What to be notified about.
+    enum MvSystemNotificationSource notification_source;
+};
+
+/// An opaque handle to a system event object. This is a 32-bit value assigned by Microvisor. Zero is never a valid handle.
+
+typedef struct MvSystemEventHandleOpaque *MvSystemEventHandle;
+
+/**
+ *  Deep sleep mode. Currently refer to STM32U5 modes.
+ */
+enum MvDeepSleepMode {
+    MV_DEEPSLEEPMODE_STANDBY       = 0x0, //< Standby mode.
+    MV_DEEPSLEEPMODE_SHUTDOWN      = 0x1, //< Shutdown mode.
+    MV_DEEPSLEEPMODE__MAX          = 0xff, //< Ensure use of correct underlying size.
+};
+
+/**
+ *  Wake-up or application restart reason
+ */
+enum MvWakeReason {
+    MV_WAKEREASON_COLDBOOT         = 0x0, //< Cold boot or wake-up from Shutdown mode.
+    MV_WAKEREASON_REMOTEMICROVISORRESTART = 0x1, //< Microvisor restart has been requested by server.
+    MV_WAKEREASON_REMOTEAPPLICATIONRESTART = 0x2, //< Application restart has been requested by server.
+    MV_WAKEREASON_DEBUGGERRESTART  = 0x3, //< Application has been restarted by debugger.
+    MV_WAKEREASON_MICROVISORCRASH  = 0x4, //< Microvisor kernel crash.
+    MV_WAKEREASON_MICROVISORWATCHDOG = 0x5, //< Microvisor watchdog failure.
+    MV_WAKEREASON_MICROVISOROUTOFMEMORY = 0x6, //< Microvisor out of memory error.
+    MV_WAKEREASON_MICROVISORERROR  = 0x7, //< Unspecified Microvisor error.
+    MV_WAKEREASON_APPLICATIONCRASH = 0x8, //< Application crash.
+    MV_WAKEREASON_APPLICATIONUPDATE = 0x9, //< Application has been updated.
+    MV_WAKEREASON_MICROVISORUPDATE = 0xa, //< Microvisor has been updated.
+    MV_WAKEREASON_OPTIONBYTES      = 0xb, //< Device option bytes have been updated.
+    MV_WAKEREASON_DEEPSLEEPCHECKIN = 0xc, //< Device woken up from deep sleep due to check-in period expiration.
+    MV_WAKEREASON_DEEPSLEEPAPPLICATION = 0xd, //< Device woken up from deep sleep due to a wake-up reason owned by application.
+    MV_WAKEREASON_DEEPSLEEPMODEM   = 0xe, //< Device woken up from deep sleep due to cellular modem interrupt.
+    MV_WAKEREASON_DEEPSLEEPAPPLICATIONRTC = 0xf, //< Device woken up from deep sleep due to application RTC wakeup.
+    MV_WAKEREASON_DEEPSLEEPOTHER   = 0x10, //< Device woken up from deep sleep, the reason is unclear.
+    MV_WAKEREASON__MAX             = 0xff, //< Ensure use of correct underlying size.
+};
+
+/**
+ *  Restart mode.
+ */
+enum MvRestartMode {
+    MV_RESTARTMODE_AUTOAPPLYUPDATE = 0x0, //< Perform either an application or device restart, depending on what updates are pending.
+    MV_RESTARTMODE__MAX            = 0xffffffff, //< Ensure use of correct underlying size.
 };
 
 #ifdef __cplusplus
@@ -1400,6 +1478,87 @@ enum MvStatus mvTestLoggingInit(uint8_t *buffer, uint32_t length_bytes);
  * @retval MV_STATUS_LOGMESSAGETOOLONG `message` exceeds the maximum allowed size.
  */
 enum MvStatus mvTestLog(const uint8_t *message, uint16_t length_bytes);
+
+/**
+ *  Enter a power saving mode
+ *
+ * Parameters:
+ * @param         mode            The mode to enter.
+ *
+ * @retval MV_STATUS_UNAVAILABLE Calling from an interrupt.
+ * @retval MV_STATUS_PARAMETERFAULT Unknown power saving mode.
+ * @retval MV_STATUS_MICROVISORBUSY Cannot enter power-saving mode as network is still active.
+ */
+enum MvStatus mvPowerSave(enum MvPowerSavingMode mode);
+
+/**
+ *  Disable System LED to save power or enable it back
+ *
+ * Parameters:
+ * @param         enable          `0` to disable, `1` to enable, other values are reserved.
+ *
+ * @retval MV_STATUS_UNAVAILABLE Calling from an interrupt.
+ */
+enum MvStatus mvSystemLedEnable(uint32_t enable);
+
+/**
+ *  Opens a stream of system-wide notifications to a notification channel
+ *
+ * Parameters:
+ * @param[in]     params          Notification parameters
+ * @param[out]    handle          A pointer to where the system event handle will be written.
+ *
+ * @retval MV_STATUS_UNAVAILABLE Calling from an interrupt.
+ * @retval MV_STATUS_PARAMETERFAULT Invalid pointer to application memory.
+ * @retval MV_STATUS_INVALIDHANDLE Invalid notification handle or event source.
+ */
+enum MvStatus mvOpenSystemNotification(const struct MvOpenSystemNotificationParams *params, MvSystemEventHandle *handle);
+
+/**
+ *  Closes system-wide notification stream
+ *
+ * Parameters:
+ * @param[in,out] handle          A pointer to system notification heandle.
+ *
+ * @retval MV_STATUS_UNAVAILABLE Calling from an interrupt.
+ * @retval MV_STATUS_INVALIDHANDLE Invalid handle.
+ */
+enum MvStatus mvCloseSystemNotification(MvSystemEventHandle *handle);
+
+/**
+ *  Enter deep sleep
+ *
+ * Parameters:
+ * @param         mode            Specific mode to enter.
+ *
+ * @retval MV_STATUS_UNAVAILABLE Calling from an interrupt.
+ * @retval MV_STATUS_PARAMETERFAULT Unknown power saving mode.
+ * @retval MV_STATUS_MICROVISORBUSY Cannot enter power-saving mode as network is still active.
+ */
+enum MvStatus mvDeepSleep(enum MvDeepSleepMode mode);
+
+/**
+ *  Get wake-up or application restart
+ *
+ * Parameters:
+ * @param[out]    mode            Wake reason.
+ *
+ * @retval MV_STATUS_UNAVAILABLE Calling from an interrupt.
+ * @retval MV_STATUS_PARAMETERFAULT Invalid pointer to ApplicationWakeReason.
+ */
+enum MvStatus mvGetWakeReason(enum MvWakeReason *mode);
+
+/**
+ *  Restart application and/or the device
+ *
+ * Parameters:
+ * @param         mode            Type of restart to perform.
+ *
+ * @retval MV_STATUS_UNAVAILABLE Calling from an interrupt.
+ * @retval MV_STATUS_PARAMETERFAULT Unknown restart mode.
+ * @retval MV_STATUS_MICROVISORBUSY Cannot perform the chosen restart, because it will interrupt Microvisor's operation.
+ */
+enum MvStatus mvRestart(enum MvRestartMode mode);
 
 #ifdef __cplusplus
 } // extern "C"
