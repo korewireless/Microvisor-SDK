@@ -44,36 +44,10 @@ enum MvStatus {
     MV_STATUS_INTERNALERROR        = 0x21, //< Unexpected internal error.
     MV_STATUS_TOOMANYELEMENTS      = 0x22, //< Too many elements. Meaning of the element depends on request type.
     MV_STATUS_REQUIREDELEMENTMISSING = 0x23, //< A required element is missing from a request.
-    MV_STATUS_MICROVISORBUSY       = 0x24, //< Could not perform the operation, because Microvisor is
+    MV_STATUS_MICROVISORBUSY       = 0x24, //< Could not perform the operation, because Microvisor is busy.
+    MV_STATUS_ADDRESSOUTOFRANGE    = 0x25, //< Supplied address is out of range.
+    MV_STATUS_INPUTTOOLONG         = 0x26, //< Supplied input buffer is too long for intended use.
     MV_STATUS__MAX                 = 0xffffffff, //< Ensure use of correct underlying size.
-};
-
-struct MvTemporaryTestSubStruct {
-    /// First member
-    uint64_t a;
-    /// Second member
-    uint32_t b;
-};
-
-struct MvTemporaryTestStruct {
-    /// First member
-    uint8_t a;
-    /// Second member
-    struct MvTemporaryTestSubStruct *b;
-    /// Third member
-    uint32_t c;
-};
-
-struct MvTemporaryTestVersionedStruct {
-    uint32_t version; //< version field; describes which other fields are valid
-    union {
-        struct {
-            /// First member
-            uint16_t a;
-            /// Second member
-            struct MvTemporaryTestStruct b;
-        } v1;
-    };
 };
 
 /**
@@ -660,6 +634,59 @@ enum MvRestartMode {
     MV_RESTARTMODE__MAX            = 0xffffffff, //< Ensure use of correct underlying size.
 };
 
+/// An opaque handle to an external flash object. This is a 32-bit value assigned by Microvisor. Zero is never a valid handle.
+
+typedef struct MvExternalFlashHandleOpaque *MvExternalFlashHandle;
+
+struct MvExternalFlashInfo {
+    uint32_t version; //< version field; describes which other fields are valid
+    union {
+        struct {
+            /// SPI flash chip ID.
+            uint32_t chip_id;
+            /// Number of bytes available to the application in bytes.
+            uint32_t size;
+            /// Number of open handles to the external flash.
+            uint32_t num_handles;
+        } v1;
+    };
+};
+
+/**
+ *  How wifi configuration is applied.
+ */
+enum MvWifiConfigMode {
+    MV_WIFICONFIGMODE_APPLYNOW     = 0x0, //< Configuration overwrites existing settings and is used for all subsequent reconnection attempts.
+    MV_WIFICONFIGMODE_CLEARNOW     = 0x1, //< Configuration is immediately cleared, reconnection disabled.
+    MV_WIFICONFIGMODE__MAX         = 0xff, //< Ensure use of correct underlying size.
+};
+
+struct MvWifiConfig {
+    uint32_t version; //< version field; describes which other fields are valid
+    union {
+        struct {
+            /// How wifi configuration is applied.
+            enum MvWifiConfigMode config_mode;
+            /// Wifi SSID.
+            struct MvSizedString wifi_ssid;
+            /// Wifi password.
+            struct MvSizedString wifi_password;
+        } v1;
+    };
+};
+
+struct MvWifiConfigOut {
+    uint32_t version; //< version field; describes which other fields are valid
+    union {
+        struct {
+            /// A buffer where the SSID will be written.
+            struct MvSizedStringBuffer ssid;
+            /// Pointer to byte where has_encryption flag will be written.
+            uint8_t *has_encryption;
+        } v1;
+    };
+};
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -736,17 +763,6 @@ enum MvStatus mvGetPClk2(uint32_t *hz);
  * @retval MV_STATUS_TIMENOTSET No wall time is available.
  */
 enum MvStatus mvGetWallTime(uint64_t *usec);
-
-/**
- *  Test structure parameters`
- *
- * Parameters:
- * @param[in]     in              input structure.
- *
- * @retval MV_STATUS_PARAMETERFAULT `in` is an illegal pointer.
- * @retval MV_STATUS_UNSUPPORTEDSTRUCTUREVERSION Structure version is not supported.
- */
-enum MvStatus mvTemporaryStructTest(const struct MvTemporaryTestVersionedStruct *in);
 
 /**
  *  Returns the device's 34-byte unique ID code.
@@ -1518,7 +1534,7 @@ enum MvStatus mvOpenSystemNotification(const struct MvOpenSystemNotificationPara
  *  Closes system-wide notification stream
  *
  * Parameters:
- * @param[in,out] handle          A pointer to system notification heandle.
+ * @param[in,out] handle          A pointer to system notification handle.
  *
  * @retval MV_STATUS_UNAVAILABLE Calling from an interrupt.
  * @retval MV_STATUS_INVALIDHANDLE Invalid handle.
@@ -1559,6 +1575,109 @@ enum MvStatus mvGetWakeReason(enum MvWakeReason *mode);
  * @retval MV_STATUS_MICROVISORBUSY Cannot perform the chosen restart, because it will interrupt Microvisor's operation.
  */
 enum MvStatus mvRestart(enum MvRestartMode mode);
+
+/**
+ *  Open external flash.
+ *
+ * Parameters:
+ * @param[out]    handle          A pointer to where the external flash handle will be written.
+ *
+ * @retval MV_STATUS_UNAVAILABLE Calling from an interrupt.
+ * @retval MV_STATUS_PARAMETERFAULT `handle_out` is an illegal pointer.
+ * @retval MV_STATUS_TOOMANYCHANNELS Too many open handles. Current limit is 32.
+ */
+enum MvStatus mvExternalFlashOpen(MvExternalFlashHandle *handle);
+
+/**
+ *  Release external flash handle.
+ *
+ * Parameters:
+ * @param[in,out] handle          A pointer to external flash handle.
+ *
+ * @retval MV_STATUS_UNAVAILABLE Calling from an interrupt.
+ * @retval MV_STATUS_INVALIDHANDLE `handle` is not a valid external flash handle.
+ */
+enum MvStatus mvExternalFlashClose(MvExternalFlashHandle *handle);
+
+/**
+ *  Read data from external flash.
+ *
+ * Parameters:
+ * @param         handle          External flash handle to use.
+ * @param         address         Address to read from
+ * @param         length          Number of bytes to read
+ * @param[out]    buffer          Buffer to read the data to. Should be at least `length` bytes long
+ *
+ * @retval MV_STATUS_UNAVAILABLE Calling from an interrupt.
+ * @retval MV_STATUS_PARAMETERFAULT `buffer` is an illegal pointer.
+ * @retval MV_STATUS_INVALIDHANDLE `handle` is invalid.
+ * @retval MV_STATUS_ADDRESSOUTOFRANGE Address and/or length are out of range. Call `mvExternalFlashGetInfo` to get available flash size
+ */
+enum MvStatus mvExternalFlashReadBlocking(MvExternalFlashHandle handle, uint32_t address, uint32_t length, uint8_t *buffer);
+
+/**
+ *  Erase external flash. Both address and length should be aligned to 4096 byte boundary.
+ *
+ * Parameters:
+ * @param         handle          External flash handle to use.
+ * @param         address         Address to read from
+ * @param         length          Number of bytes to read
+ *
+ * @retval MV_STATUS_UNAVAILABLE Calling from an interrupt.
+ * @retval MV_STATUS_PARAMETERFAULT `buffer` is an illegal pointer.
+ * @retval MV_STATUS_INVALIDHANDLE `handle` is invalid.
+ * @retval MV_STATUS_ADDRESSOUTOFRANGE Address and/or length are out of range. Call `mvExternalFlashGetInfo` to get available flash size
+ * @retval MV_STATUS_INVALIDBUFFERALIGNMENT Address and/or length is not aligned to 4096 byte boundary
+ */
+enum MvStatus mvExternalFlashEraseBlocking(MvExternalFlashHandle handle, uint32_t address, uint32_t length);
+
+/**
+ *  Write data to external flash.
+ *
+ * Parameters:
+ * @param         handle          External flash handle to use.
+ * @param         address         Address to write to
+ * @param         length          Number of bytes to write
+ * @param[in]     buffer          Buffer to write the data from. Should be at least `length` bytes long
+ *
+ * @retval MV_STATUS_UNAVAILABLE Calling from an interrupt.
+ * @retval MV_STATUS_PARAMETERFAULT `buffer` is an illegal pointer.
+ * @retval MV_STATUS_INVALIDHANDLE `handle` is invalid.
+ * @retval MV_STATUS_ADDRESSOUTOFRANGE Address and/or length are out of range. Call `mvExternalFlashGetInfo` to get available flash size
+ */
+enum MvStatus mvExternalFlashWriteBlocking(MvExternalFlashHandle handle, uint32_t address, uint32_t length, const uint8_t *buffer);
+
+/**
+ *  Read data from external flash.
+ *
+ * Parameters:
+ * @param         handle          External flash handle to use.
+ * @param[out]    info            Where to save flash info. `version` should be set to 1 by the application
+ *
+ * @retval MV_STATUS_UNAVAILABLE Calling from an interrupt.
+ * @retval MV_STATUS_PARAMETERFAULT `info` is an illegal pointer.
+ * @retval MV_STATUS_INVALIDHANDLE `handle` is invalid.
+ * @retval MV_STATUS_UNSUPPORTEDSTRUCTUREVERSION `info` structure has a version set to an unsupported value (only 1 is presently supported)
+ */
+enum MvStatus mvExternalFlashGetInfo(MvExternalFlashHandle handle, struct MvExternalFlashInfo *info);
+
+/**
+ *  Sets wifi configuration.
+ *
+ * Parameters:
+ * @param[in]     params          Structure containing wifi configuration and application mode.
+ *
+ */
+enum MvStatus mvSetWifiConfig(const struct MvWifiConfig *params);
+
+/**
+ *  Gets wifi configuration.
+ *
+ * Parameters:
+ * @param[in]     params          Structure containing current wifi configuration.
+ *
+ */
+enum MvStatus mvGetWifiConfig(const struct MvWifiConfigOut *params);
 
 #ifdef __cplusplus
 } // extern "C"
