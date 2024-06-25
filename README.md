@@ -34,4 +34,4 @@ You can also consume the included artifacts directly:
 
 ## Copyright
 
-This code is © 2021-23, KORE Wireless.
+This code is © 2021-24, KORE Wireless.
